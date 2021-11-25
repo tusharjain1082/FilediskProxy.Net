@@ -1,0 +1,8 @@
+sc stop filedisk-proxy
+sc delete filedisk-proxy
+move /Y "C:\[IMP]turorials\KMDF-master\base\x64\Release\base.sys" .\
+move /Y "C:\[IMP]turorials\KMDF-master\base\x64\Release\testapp.exe" .\
+move /Y "C:\[IMP]turorials\KMDF-master\base\x64\Release\testappdesktop.exe" .\
+sc create base binpath="C:\test\base.sys" type=kernel
+sc start base
+pause
