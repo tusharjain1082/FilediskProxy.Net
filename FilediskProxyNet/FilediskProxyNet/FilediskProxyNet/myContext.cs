@@ -41,6 +41,7 @@ namespace FilediskProxyNet
         public FileStream fs = null;
         public char[] driveletter = new char[4];
         public String drivePath = "";
+        public String drivePathComplete = "";
         public byte[] header = null;
         public long file_size = 0;
         public long file_size_true = 0;

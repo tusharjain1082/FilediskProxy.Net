@@ -15,6 +15,7 @@ using System.Windows.Forms.VisualStyles;
 using System.Runtime.InteropServices;
 using System.Numerics;
 using System.IO.MemoryMappedFiles;
+using System.Diagnostics;
 
 namespace FilediskProxyNet
 {
@@ -22,6 +23,7 @@ namespace FilediskProxyNet
     {
         myContext filehandle = null;
         bool terminateProxy = false;
+        Stopwatch myStopWatchRunningTime = new Stopwatch();
 
         public FormRoot()
         {
@@ -30,7 +32,14 @@ namespace FilediskProxyNet
 
         private void FormRoot_Load(object sender, EventArgs e)
         {
+            DateTime outputDateTime = new DateTime();
+            String strBuildDateTime = commonMethods1.GenerateTimeDateFromString(FilediskProxyNet.Properties.Resources.BuildDate, FilediskProxyNet.Properties.Resources.BuildTime, out outputDateTime);
+            this.Text = this.Text + " Version " + Application.ProductVersion + ", Compiled/Built on: " + strBuildDateTime;
+//            String[] VersionInfo = Application.ProductVersion.Split(new char[] { '.' });
+  //          lblVersion.Text = String.Format(lblVersion.Text, Application.ProductVersion, VersionInfo[3], ((VersionInfo[3] == "1") ? " (first) " : " "));
+
             cmbDriveLetter.SelectedIndex = cmbDriveLetter.FindString(String.Format("{0}", "Z"));
+
 
         }
 
@@ -114,9 +123,10 @@ namespace FilediskProxyNet
             filehandle.file_size = ((newVHDFile) ? newFileSize : new FileInfo(filename).Length);
             filehandle.newVHDFile = newVHDFile;
             filehandle.readOnlyVHD = chkReadOnlyVHD.Checked;
-            filehandle.drivePath = filehandle.driveletter + @":";
+            filehandle.drivePath = filehandle.driveletter[0] + @":";
+            filehandle.drivePathComplete = String.Format(@"{0}:\", driveLetter);
 
-            String destFile = filehandle.filename;
+                String destFile = filehandle.filename;
             if (newVHDFile)
             {
                 // delete old file and create new file always
@@ -158,14 +168,18 @@ namespace FilediskProxyNet
 
             // finally set the loaded vault file name
             txtContainerFile.Text = ofdVaultFile.FileName = filehandle.filename;
-            tssLabelVaultFile1.Text = "vault file has been sucessfully loaded. drive path: " + filehandle.drivePath;
 
             filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
             Int64 ctxref = 0;
             int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, ref ctxref);
-            filehandle.ctx = ctxref;
             if (result != 0)
             {
+                filehandle.ctx = ctxref;
+                myStopWatchRunningTime.Restart();
+                timerUpdateStatus.Enabled = false;
+                timerUpdateStatus.Start();
+                tssLabelVaultFile1.Text = "file loaded. drive path: " + filehandle.drivePath;
+                txtDrivePath.Text = filehandle.drivePathComplete;
                 terminateProxy = false;
                 initThread(filehandle);
                 //MessageBox.Show("success");
@@ -242,6 +256,8 @@ namespace FilediskProxyNet
                     filehandle.fs.Read(buffer, 0, (int)length);
                     CopyToGlobalBuffer(buffer, 0, filehandle.__buffer0, 0, (int)length);
                     filehandle.fdpObject.SetSHMBuffer(filehandle.ctx, 0, length, (long)filehandle.__buffer0);
+                    filehandle.totalDataRead_BigDecimal += length;
+                    filehandle.bandwidthRead += length;
                 }
                 else if (function == myContext.IRP_MJ_WRITE)
                 {
@@ -250,6 +266,8 @@ namespace FilediskProxyNet
                     CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
                     filehandle.fs.Write(buffer, 0, (int)length);
                     filehandle.fs.Flush();
+                    filehandle.totalDataWrite_BigDecimal += length;
+                    filehandle.bandwidthWrite += length;
                 }
                 else
                 {
@@ -342,13 +360,55 @@ namespace FilediskProxyNet
             int result = filehandle.fdpObject.delete_ctx(filehandle.ctx);
             if (result != 0)
             {
+                tssLabelVaultFile1.Text = "no vault file loaded.";
                 txtContainerFile.Text = "";
+                txtDrivePath.Text = "";
                 terminateProxy = true;
                 filehandle.myThreadWaitHandle.WaitOne(Timeout.Infinite, false);
                 filehandle.DisposeFinalizeAll();
                 filehandle = null;
                 MessageBox.Show(this, "Successfully unloaded disk file! Click on OK to continue...", "file unload success.", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, (MessageBoxOptions)0x40000);  // MB_TOPMOST
             }
+        }
+
+        private void timerUpdateStatus_Tick(object sender, EventArgs e)
+        {
+            if (this.filehandle != null)
+            {
+                txtboxTotalDataRead.Text = String.Format("{0} GB", (((this.filehandle.totalDataRead_BigDecimal / 1024) / 1024) / 1024).ToPlainString());
+                txtboxTotalDataWritten.Text = String.Format("{0} GB", (((this.filehandle.totalDataWrite_BigDecimal / 1024) / 1024) / 1024).ToPlainString());
+                txtboxTotalDataReadMB.Text = String.Format("{0} MB", ((this.filehandle.totalDataRead_BigDecimal / 1024) / 1024).ToPlainString());
+                txtboxTotalDataWrittenMB.Text = String.Format("{0} MB", ((this.filehandle.totalDataWrite_BigDecimal / 1024) / 1024).ToPlainString());
+
+                // bandwidth
+                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthRead, 10));
+                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthWrite, 10));//((this.filehandle.bandwidthWrite / 1024) / 1024));
+                this.filehandle.bandwidthRead = this.filehandle.bandwidthWrite = 0;
+                this.txtboxTotalRunningTime.Text = this.myStopWatchRunningTime.Elapsed.ToString("d' Days 'h' Hours 'm' Minutes 's' Seconds'");
+            }
+            else
+            {
+                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(0, 10));
+                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(0, 10));//((this.filehandle.bandwidthWrite / 1024) / 1024));
+                timerUpdateStatus.Enabled = false;
+                myStopWatchRunningTime.Stop();
+                timerUpdateStatus.Stop();
+            }
+
+        }
+
+        private void timerCheckContainer1Status_Tick(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cmdExploreVault_Click(object sender, EventArgs e)
+        {
+            if (txtContainerFile.Text.Length <= 0)
+                return;
+
+            commonMethods1.openFolder(filehandle.drivePath);
+
         }
     }
 }

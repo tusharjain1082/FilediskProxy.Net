@@ -29,6 +29,8 @@ namespace FilediskProxyNet
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormRoot));
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
@@ -67,6 +69,10 @@ namespace FilediskProxyNet
             this.label14 = new System.Windows.Forms.Label();
             this.sfdVaultFile = new System.Windows.Forms.SaveFileDialog();
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
+            this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
+            this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
+            this.txtDrivePath = new System.Windows.Forms.TextBox();
+            this.label2 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -103,6 +109,8 @@ namespace FilediskProxyNet
             // groupBox3
             // 
             this.groupBox3.BackColor = System.Drawing.Color.Ivory;
+            this.groupBox3.Controls.Add(this.label2);
+            this.groupBox3.Controls.Add(this.txtDrivePath);
             this.groupBox3.Controls.Add(this.label17);
             this.groupBox3.Controls.Add(this.txtboxTotalRunningTime);
             this.groupBox3.Controls.Add(this.chkReadOnlyVHD);
@@ -327,12 +335,13 @@ namespace FilediskProxyNet
             // 
             this.cmdExploreVault.BackColor = System.Drawing.Color.Gold;
             this.cmdExploreVault.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cmdExploreVault.Location = new System.Drawing.Point(664, 123);
+            this.cmdExploreVault.Location = new System.Drawing.Point(528, 318);
             this.cmdExploreVault.Name = "cmdExploreVault";
             this.cmdExploreVault.Size = new System.Drawing.Size(130, 30);
             this.cmdExploreVault.TabIndex = 28;
             this.cmdExploreVault.Text = "explore...";
             this.cmdExploreVault.UseVisualStyleBackColor = false;
+            this.cmdExploreVault.Click += new System.EventHandler(this.cmdExploreVault_Click);
             // 
             // cmdUnloadFile
             // 
@@ -485,7 +494,7 @@ namespace FilediskProxyNet
             // 
             // tabPage3
             // 
-            this.tabPage3.BackColor = System.Drawing.Color.Pink;
+            this.tabPage3.BackColor = System.Drawing.Color.Snow;
             this.tabPage3.Location = new System.Drawing.Point(4, 33);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Size = new System.Drawing.Size(812, 513);
@@ -494,7 +503,7 @@ namespace FilediskProxyNet
             // 
             // tabPage4
             // 
-            this.tabPage4.BackColor = System.Drawing.Color.PowderBlue;
+            this.tabPage4.BackColor = System.Drawing.Color.Khaki;
             this.tabPage4.Controls.Add(this.chkLiveVHDLockWriteAccess);
             this.tabPage4.Controls.Add(this.label14);
             this.tabPage4.Location = new System.Drawing.Point(4, 33);
@@ -536,6 +545,39 @@ namespace FilediskProxyNet
             this.ofdVaultFile.Filter = "Vault files *.Vault|*.Vault|All files *.*|*.*";
             this.ofdVaultFile.Title = "Load a Vault Container file";
             // 
+            // timerUpdateStatus
+            // 
+            this.timerUpdateStatus.Interval = 1000;
+            this.timerUpdateStatus.Tick += new System.EventHandler(this.timerUpdateStatus_Tick);
+            // 
+            // timerCheckContainer1Status
+            // 
+            this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
+            // 
+            // txtDrivePath
+            // 
+            this.txtDrivePath.BackColor = System.Drawing.Color.LightGreen;
+            this.txtDrivePath.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtDrivePath.ForeColor = System.Drawing.Color.Black;
+            this.txtDrivePath.Location = new System.Drawing.Point(111, 318);
+            this.txtDrivePath.MaxLength = 0;
+            this.txtDrivePath.Name = "txtDrivePath";
+            this.txtDrivePath.ReadOnly = true;
+            this.txtDrivePath.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtDrivePath.Size = new System.Drawing.Size(411, 31);
+            this.txtDrivePath.TabIndex = 60;
+            this.txtDrivePath.Text = "drive path complete";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label2.Location = new System.Drawing.Point(5, 326);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(86, 18);
+            this.label2.TabIndex = 61;
+            this.label2.Text = "drive path:";
+            // 
             // FormRoot
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -544,6 +586,7 @@ namespace FilediskProxyNet
             this.ClientSize = new System.Drawing.Size(884, 611);
             this.Controls.Add(this.tabControl1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "FormRoot";
@@ -605,6 +648,10 @@ namespace FilediskProxyNet
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.SaveFileDialog sfdVaultFile;
         private System.Windows.Forms.OpenFileDialog ofdVaultFile;
+        private System.Windows.Forms.Timer timerUpdateStatus;
+        private System.Windows.Forms.Timer timerCheckContainer1Status;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.TextBox txtDrivePath;
     }
 }
 

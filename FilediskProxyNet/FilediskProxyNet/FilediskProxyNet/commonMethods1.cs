@@ -95,5 +95,32 @@ namespace FilediskProxyNet
             }
             return fs;
         }
+
+        public static Boolean openFolder(String strFolderPath)
+        {
+            if(Directory.Exists(strFolderPath))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", strFolderPath);
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+            return false;
+        }
+
+        public static String GenerateTimeDateFromString(String strInputDate, String strInputTime, out DateTime output)
+        {
+            String[] strsplitDateArray = strInputDate.Split('-');
+            String[] strsplitTimeArray = strInputTime.Split(':');
+            String[] strsplitSecondsArray = strsplitTimeArray[2].Split('.');
+            DateTime objDateTime = new DateTime(int.Parse(strsplitDateArray[2]), int.Parse(strsplitDateArray[1]), int.Parse(strsplitDateArray[0]), int.Parse(strsplitTimeArray[0]), int.Parse(strsplitTimeArray[1]), int.Parse(strsplitSecondsArray[0]), int.Parse(strsplitSecondsArray[1]), DateTimeKind.Utc);
+            String strString = objDateTime.ToString("dddd, d MMMM, yyyy, hh-mm-ss tt");
+            output = objDateTime;
+            return strString;
+        }
     }
 }

@@ -121,4 +121,13 @@
   <data name="1a4f7f15ace98f6aa610193e98e9e16d" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\1a4f7f15ace98f6aa610193e98e9e16d.jpg;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="BuildDate" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BuildDate.txt;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  </data>
+  <data name="BuildDateTime" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BuildDateTime.txt;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  </data>
+  <data name="BuildTime" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\BuildTime.txt;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;Windows-1252</value>
+  </data>
 </root>

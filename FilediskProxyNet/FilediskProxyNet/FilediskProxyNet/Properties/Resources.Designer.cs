@@ -69,5 +69,35 @@ namespace FilediskProxyNet.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 26-11-2021 
+        ///.
+        /// </summary>
+        internal static string BuildDate {
+            get {
+                return ResourceManager.GetString("BuildDate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 26-11-2021 - 13:16:34.31 
+        ///.
+        /// </summary>
+        internal static string BuildDateTime {
+            get {
+                return ResourceManager.GetString("BuildDateTime", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 13:16:34.31 
+        ///.
+        /// </summary>
+        internal static string BuildTime {
+            get {
+                return ResourceManager.GetString("BuildTime", resourceCulture);
+            }
+        }
     }
 }
