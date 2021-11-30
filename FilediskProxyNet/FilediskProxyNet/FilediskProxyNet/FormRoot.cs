@@ -35,8 +35,8 @@ namespace FilediskProxyNet
             DateTime outputDateTime = new DateTime();
             String strBuildDateTime = commonMethods1.GenerateTimeDateFromString(FilediskProxyNet.Properties.Resources.BuildDate, FilediskProxyNet.Properties.Resources.BuildTime, out outputDateTime);
             this.Text = this.Text + " Version " + Application.ProductVersion + ", Compiled/Built on: " + strBuildDateTime;
-//            String[] VersionInfo = Application.ProductVersion.Split(new char[] { '.' });
-  //          lblVersion.Text = String.Format(lblVersion.Text, Application.ProductVersion, VersionInfo[3], ((VersionInfo[3] == "1") ? " (first) " : " "));
+            //            String[] VersionInfo = Application.ProductVersion.Split(new char[] { '.' });
+            //          lblVersion.Text = String.Format(lblVersion.Text, Application.ProductVersion, VersionInfo[3], ((VersionInfo[3] == "1") ? " (first) " : " "));
 
             cmbDriveLetter.SelectedIndex = cmbDriveLetter.FindString(String.Format("{0}", "Z"));
 
@@ -126,7 +126,7 @@ namespace FilediskProxyNet
             filehandle.drivePath = filehandle.driveletter[0] + @":";
             filehandle.drivePathComplete = String.Format(@"{0}:\", driveLetter);
 
-                String destFile = filehandle.filename;
+            String destFile = filehandle.filename;
             if (newVHDFile)
             {
                 // delete old file and create new file always
@@ -171,9 +171,14 @@ namespace FilediskProxyNet
 
             filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
             Int64 ctxref = 0;
-            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, ref ctxref);
+            int usePipe = 0;
+            if (radioUsePipe.Checked)
+                usePipe = 1;
+
+            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, usePipe, ref ctxref);
             if (result != 0)
             {
+                filehandle.usePipe = usePipe;
                 filehandle.ctx = ctxref;
                 myStopWatchRunningTime.Restart();
                 timerUpdateStatus.Enabled = false;
@@ -194,10 +199,115 @@ namespace FilediskProxyNet
         public void initThread(myContext obj)
         {
             obj.myThreadWaitHandle.Reset();
-            obj.myThread = new Thread(new ParameterizedThreadStart(ProxyServerThreadFunction));
+            if (obj.usePipe == 1)
+            {
+                obj.myThread = new Thread(new ParameterizedThreadStart(ProxyPipeServerThreadFunction));
+            }
+            else
+            {
+                obj.myThread = new Thread(new ParameterizedThreadStart(ProxySHMServerThreadFunction));
+            }
             obj.myThread.Start(obj);
         }
-        private void ProxyServerThreadFunction(Object obj)
+
+        private void ProxyPipeServerThreadFunction(Object obj)
+        {
+            myContext filehandle = (myContext)obj;
+            UInt32 WaitStatus;
+            int result0 = 0;
+
+            // initialize a buffer
+            byte[] buffer = new byte[myContext.ShmSize];
+
+            // notify windows of drive add
+            filehandle.fdpObject.NotifyWindows(filehandle.ctx, 1);
+
+            // phase 1 = infinite loop server and client
+            while (true)
+            {
+                // terminate if user set the termination flag
+                if (terminateProxy)
+                {
+                    filehandle.myThreadWaitHandle.Set();
+                    return;
+                }
+
+
+                // wait for driver event to occur
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
+                if (WaitStatus == myContext.WAIT_OBJECT_0)
+                {
+                    // success, the driver set the event flag
+                }
+                else if (WaitStatus == myContext.WAIT_TIMEOUT)
+                {
+                    // the driver did not set the event flag, so continue
+                    continue;
+                }
+                else
+                {
+                    // error or exception, continue
+                    continue;
+                }
+
+                // Step 1: wait and connect to a client at pipe.
+                result0 = filehandle.fdpObject.ConnectPipe(filehandle.ctx);
+
+                // client connected at this point
+                // there is no wait here, we only use connect pipe and the function waits.
+                // we directly connect to the pipe and receive request upon connection.
+                UInt64 offset = 0;
+                UInt32 length = 0;
+                byte function = 0;
+                UInt32 totalBytesReadWrite = 0;
+                // Step 1: receive request from the client
+                filehandle.fdpObject.Step1PipeGetRequest(filehandle.ctx, ref offset, ref length, ref function, ref totalBytesReadWrite);
+
+
+
+
+                // Step 2: i/o
+
+
+
+                // set position in backend disk file
+                filehandle.fs.Seek((long)offset, SeekOrigin.Begin);
+
+                // now process the i/o
+                if (function == myContext.IRP_MJ_READ)
+                {
+                    // driver request read into buffer
+                    filehandle.fs.Read(buffer, 0, (int)length);
+                    CopyToGlobalBuffer(buffer, 0, filehandle.__buffer0, 0, (int)length);
+                    filehandle.fdpObject.WritePipe(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    filehandle.totalDataRead_BigDecimal += length;
+                    filehandle.bandwidthRead += length;
+                }
+                else 
+                {
+                    // driver request write through buffer into virtual disk file
+                    filehandle.fdpObject.ReadPipe(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
+                    filehandle.fs.Write(buffer, 0, (int)length);
+                    filehandle.fs.Flush();
+                    filehandle.totalDataWrite_BigDecimal += length;
+                    filehandle.bandwidthWrite += length;
+                }
+
+                // Step 2: close the connection to client.
+                filehandle.fdpObject.DisconnectPipe(filehandle.ctx);
+
+
+
+                // Step 3: set the event
+                // finally set the proxy idle event for the driver to unblock and process the reply and unset the driver data set event
+                filehandle.fdpObject.SetEventDriverRequestDataSet(filehandle.ctx, 0);
+                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+
+            }
+        }
+
+        private void ProxySHMServerThreadFunction(Object obj)
         {
             myContext filehandle = (myContext)obj;
 
@@ -213,7 +323,7 @@ namespace FilediskProxyNet
                 if (terminateProxy)
                 {
                     filehandle.myThreadWaitHandle.Set();
-                    return;                       
+                    return;
                 }
 
                 // wait for driver event to occur
@@ -357,18 +467,29 @@ namespace FilediskProxyNet
             if (txtContainerFile.Text.Length <= 0)
                 return;
 
-            int result = filehandle.fdpObject.delete_ctx(filehandle.ctx);
-            if (result != 0)
-            {
-                tssLabelVaultFile1.Text = "no vault file loaded.";
-                txtContainerFile.Text = "";
-                txtDrivePath.Text = "";
-                terminateProxy = true;
-                filehandle.myThreadWaitHandle.WaitOne(Timeout.Infinite, false);
-                filehandle.DisposeFinalizeAll();
-                filehandle = null;
-                MessageBox.Show(this, "Successfully unloaded disk file! Click on OK to continue...", "file unload success.", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, (MessageBoxOptions)0x40000);  // MB_TOPMOST
-            }
+            // disable the form and stand by.
+
+            this.Enabled = false;
+            
+            // delete entire session context and all objects
+            filehandle.fdpObject.deregister_file(filehandle.ctx);
+//            filehandle.fdpObject.SetEventShutdown(filehandle.ctx, 1);
+  //          filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+            filehandle.fdpObject.delete_ctx(filehandle.ctx);
+            filehandle.fdpObject.delete_objects(filehandle.ctx);
+
+            // reset
+            tssLabelVaultFile1.Text = "no vault file loaded.";
+            txtContainerFile.Text = "";
+            txtDrivePath.Text = "";
+
+            // terminate server-client thread
+            terminateProxy = true;
+            filehandle.myThreadWaitHandle.WaitOne(Timeout.Infinite, false);
+            filehandle.DisposeFinalizeAll();
+            filehandle = null;
+            this.Enabled = true;
+            MessageBox.Show(this, "Successfully unloaded disk file! Click on OK to continue...", "file unload success.", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, (MessageBoxOptions)0x40000);  // MB_TOPMOST
         }
 
         private void timerUpdateStatus_Tick(object sender, EventArgs e)

@@ -34,6 +34,8 @@ namespace FilediskProxyNet
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.label2 = new System.Windows.Forms.Label();
+            this.txtDrivePath = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
             this.txtboxTotalRunningTime = new System.Windows.Forms.TextBox();
             this.chkReadOnlyVHD = new System.Windows.Forms.CheckBox();
@@ -56,6 +58,9 @@ namespace FilediskProxyNet
             this.txtContainerFile = new System.Windows.Forms.TextBox();
             this.cmdLoadFile = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.radioUsePipe = new System.Windows.Forms.RadioButton();
+            this.radioUseSHM = new System.Windows.Forms.RadioButton();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.radioUseSizeGB = new System.Windows.Forms.RadioButton();
             this.label5 = new System.Windows.Forms.Label();
@@ -64,22 +69,20 @@ namespace FilediskProxyNet
             this.label1 = new System.Windows.Forms.Label();
             this.txtConfigureVaultSizeMB = new System.Windows.Forms.TextBox();
             this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.tabPage4 = new System.Windows.Forms.TabPage();
             this.chkLiveVHDLockWriteAccess = new System.Windows.Forms.CheckBox();
             this.label14 = new System.Windows.Forms.Label();
             this.sfdVaultFile = new System.Windows.Forms.SaveFileDialog();
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
             this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
-            this.txtDrivePath = new System.Windows.Forms.TextBox();
-            this.label2 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.ssVaultFile1.SuspendLayout();
             this.tabPage2.SuspendLayout();
+            this.groupBox2.SuspendLayout();
             this.groupBox1.SuspendLayout();
-            this.tabPage4.SuspendLayout();
+            this.tabPage3.SuspendLayout();
             this.SuspendLayout();
             // 
             // tabControl1
@@ -87,7 +90,6 @@ namespace FilediskProxyNet
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
-            this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
@@ -136,6 +138,30 @@ namespace FilediskProxyNet
             this.groupBox3.TabIndex = 29;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "container 1";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label2.Location = new System.Drawing.Point(5, 326);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(86, 18);
+            this.label2.TabIndex = 61;
+            this.label2.Text = "drive path:";
+            // 
+            // txtDrivePath
+            // 
+            this.txtDrivePath.BackColor = System.Drawing.Color.LightGreen;
+            this.txtDrivePath.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtDrivePath.ForeColor = System.Drawing.Color.Black;
+            this.txtDrivePath.Location = new System.Drawing.Point(111, 318);
+            this.txtDrivePath.MaxLength = 0;
+            this.txtDrivePath.Name = "txtDrivePath";
+            this.txtDrivePath.ReadOnly = true;
+            this.txtDrivePath.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtDrivePath.Size = new System.Drawing.Size(411, 31);
+            this.txtDrivePath.TabIndex = 60;
+            this.txtDrivePath.Text = "drive path complete";
             // 
             // label17
             // 
@@ -406,12 +432,46 @@ namespace FilediskProxyNet
             // tabPage2
             // 
             this.tabPage2.BackColor = System.Drawing.Color.Cornsilk;
+            this.tabPage2.Controls.Add(this.groupBox2);
             this.tabPage2.Controls.Add(this.groupBox1);
             this.tabPage2.Location = new System.Drawing.Point(4, 33);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Size = new System.Drawing.Size(812, 513);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "configuration";
+            // 
+            // groupBox2
+            // 
+            this.groupBox2.Controls.Add(this.radioUsePipe);
+            this.groupBox2.Controls.Add(this.radioUseSHM);
+            this.groupBox2.Location = new System.Drawing.Point(3, 214);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(795, 100);
+            this.groupBox2.TabIndex = 55;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "configure request i/o type";
+            // 
+            // radioUsePipe
+            // 
+            this.radioUsePipe.AutoSize = true;
+            this.radioUsePipe.Location = new System.Drawing.Point(24, 62);
+            this.radioUsePipe.Name = "radioUsePipe";
+            this.radioUsePipe.Size = new System.Drawing.Size(101, 28);
+            this.radioUsePipe.TabIndex = 41;
+            this.radioUsePipe.Text = "use pipe";
+            this.radioUsePipe.UseVisualStyleBackColor = true;
+            // 
+            // radioUseSHM
+            // 
+            this.radioUseSHM.AutoSize = true;
+            this.radioUseSHM.Checked = true;
+            this.radioUseSHM.Location = new System.Drawing.Point(24, 28);
+            this.radioUseSHM.Name = "radioUseSHM";
+            this.radioUseSHM.Size = new System.Drawing.Size(196, 28);
+            this.radioUseSHM.TabIndex = 38;
+            this.radioUseSHM.TabStop = true;
+            this.radioUseSHM.Text = "use shared memory";
+            this.radioUseSHM.UseVisualStyleBackColor = true;
             // 
             // groupBox1
             // 
@@ -494,23 +554,14 @@ namespace FilediskProxyNet
             // 
             // tabPage3
             // 
-            this.tabPage3.BackColor = System.Drawing.Color.Snow;
+            this.tabPage3.BackColor = System.Drawing.Color.Khaki;
+            this.tabPage3.Controls.Add(this.chkLiveVHDLockWriteAccess);
+            this.tabPage3.Controls.Add(this.label14);
             this.tabPage3.Location = new System.Drawing.Point(4, 33);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Size = new System.Drawing.Size(812, 513);
-            this.tabPage3.TabIndex = 2;
-            this.tabPage3.Text = "configuration page 2";
-            // 
-            // tabPage4
-            // 
-            this.tabPage4.BackColor = System.Drawing.Color.Khaki;
-            this.tabPage4.Controls.Add(this.chkLiveVHDLockWriteAccess);
-            this.tabPage4.Controls.Add(this.label14);
-            this.tabPage4.Location = new System.Drawing.Point(4, 33);
-            this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(812, 513);
-            this.tabPage4.TabIndex = 3;
-            this.tabPage4.Text = "live config";
+            this.tabPage3.TabIndex = 3;
+            this.tabPage3.Text = "live config";
             // 
             // chkLiveVHDLockWriteAccess
             // 
@@ -554,30 +605,6 @@ namespace FilediskProxyNet
             // 
             this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
             // 
-            // txtDrivePath
-            // 
-            this.txtDrivePath.BackColor = System.Drawing.Color.LightGreen;
-            this.txtDrivePath.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtDrivePath.ForeColor = System.Drawing.Color.Black;
-            this.txtDrivePath.Location = new System.Drawing.Point(111, 318);
-            this.txtDrivePath.MaxLength = 0;
-            this.txtDrivePath.Name = "txtDrivePath";
-            this.txtDrivePath.ReadOnly = true;
-            this.txtDrivePath.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtDrivePath.Size = new System.Drawing.Size(411, 31);
-            this.txtDrivePath.TabIndex = 60;
-            this.txtDrivePath.Text = "drive path complete";
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(5, 326);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(86, 18);
-            this.label2.TabIndex = 61;
-            this.label2.Text = "drive path:";
-            // 
             // FormRoot
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -600,10 +627,12 @@ namespace FilediskProxyNet
             this.ssVaultFile1.ResumeLayout(false);
             this.ssVaultFile1.PerformLayout();
             this.tabPage2.ResumeLayout(false);
+            this.groupBox2.ResumeLayout(false);
+            this.groupBox2.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
-            this.tabPage4.ResumeLayout(false);
-            this.tabPage4.PerformLayout();
+            this.tabPage3.ResumeLayout(false);
+            this.tabPage3.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -643,7 +672,6 @@ namespace FilediskProxyNet
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox txtConfigureVaultSizeMB;
         private System.Windows.Forms.TabPage tabPage3;
-        private System.Windows.Forms.TabPage tabPage4;
         private System.Windows.Forms.CheckBox chkLiveVHDLockWriteAccess;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.SaveFileDialog sfdVaultFile;
@@ -652,6 +680,9 @@ namespace FilediskProxyNet
         private System.Windows.Forms.Timer timerCheckContainer1Status;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtDrivePath;
+        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.RadioButton radioUsePipe;
+        private System.Windows.Forms.RadioButton radioUseSHM;
     }
 }
 

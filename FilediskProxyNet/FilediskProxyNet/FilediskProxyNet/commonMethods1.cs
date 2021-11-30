@@ -81,8 +81,16 @@ namespace FilediskProxyNet
                 if (overwrite)
                 {
                     fs = new FileStream(strPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
-                    fs.SetLength(length);
-                    fs.Flush();
+
+                    long sectors = length / 1048576;
+                    byte[] sector = new byte[1048576];
+
+                    for (long ctr = 0; ctr < sectors; ctr++)
+                    {
+                        fs.Seek(ctr * 1048576, SeekOrigin.Begin);
+                        fs.Write(sector, 0, 1048576);
+                        fs.Flush();
+                    }
                 }
                 else
                 {

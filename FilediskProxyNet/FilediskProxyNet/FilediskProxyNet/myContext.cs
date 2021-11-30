@@ -28,6 +28,8 @@ namespace FilediskProxyNet
         public const UInt32 WAIT_OBJECT_0 = 0x00000000;
         public const UInt32 WAIT_TIMEOUT = 0x00000102;
 
+        //public const UInt32 INFINITE = 0xFFFFFFFF;
+
         // native io functions
         public const byte IRP_MJ_READ = 0x03;
         public const byte IRP_MJ_WRITE = 0x04;
@@ -55,6 +57,7 @@ namespace FilediskProxyNet
         public Int64 ctx = 0; // session context including all session configuration and handles located in Native C++ level.
         public Thread myThread = null;
         public EventWaitHandle myThreadWaitHandle = new EventWaitHandle(false, EventResetMode.ManualReset);
+        public int usePipe = 0; // when set, we use a pipe at both sides.
 
         public myContext()
         {

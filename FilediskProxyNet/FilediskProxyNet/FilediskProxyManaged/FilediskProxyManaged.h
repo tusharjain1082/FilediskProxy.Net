@@ -53,11 +53,12 @@ namespace FilediskProxyManaged {
 		//void aes_init_cbc_ctr(int64_t encryptionKey, int64_t encryptionIV, OUT int64_t% ctxOut);
 		//void aes_delete_ctx(int64_t ctxref);
 
-		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, OUT int64_t% ctxOut);
+		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t% ctxOut);
 		BOOL delete_ctx(int64_t ctxref);
 		void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
 		void SetEventProxyIdle(int64_t ctxref, BOOL set);
 		void SetEventRequestComplete(int64_t ctxref, BOOL set);
+		void SetEventShutdown(int64_t ctxref, BOOL set);
 		void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
 		uint32_t WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
@@ -66,6 +67,13 @@ namespace FilediskProxyManaged {
 		void SetSHMHeader(int64_t ctxref, int64_t byteOffset, DWORD length, UCHAR function, DWORD totalBytesReadWrite);
 		void GetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, int64_t outputBuffer);
 		void SetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, int64_t inputBuffer);
+		BOOL Step1PipeGetRequest(int64_t ctxref, OUT uint64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite);
+		void ReadPipe(int64_t ctxref, int64_t outputBuffer, int64_t length);
+		void WritePipe(int64_t ctxref, int64_t inputBuffer, int64_t length);
+		int ConnectPipe(int64_t ctxref);
+		int DisconnectPipe(int64_t ctxref);
+		int deregister_file(int64_t ctxref);
+		void delete_objects(int64_t ctxref);
 
 		// Dispose method will make IDisposable
 		~FilediskProxyManaged();

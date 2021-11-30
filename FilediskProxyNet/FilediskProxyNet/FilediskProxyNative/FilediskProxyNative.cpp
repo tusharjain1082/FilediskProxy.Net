@@ -19,6 +19,80 @@ namespace FilediskProxyNative
 
     }
 
+    int FilediskProxyNative::deregister_file(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        DWORD BytesReturned;
+        int DeviceNumber = ctx->DeviceNumber;
+
+        FILE_LOG(linfo) << "deregister_file method started";
+
+        char link[256];
+        memset(link, 0, 256);
+        sprintf_s(link, 256, "%s", BASE_DEVICE_LINK_NAME_APP);
+
+
+        // open the base device object 0
+        HANDLE Device = CreateFileA(
+            link,                      // lpFileName
+            GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
+            FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+            NULL,                               // lpSecurityAttributes
+            OPEN_EXISTING,                      // dwCreationDistribution
+            0,                                  // dwFlagsAndAttributes
+            NULL                                // hTemplateFile
+        );
+        if (Device == INVALID_HANDLE_VALUE)
+        {
+            // unable to open base device 0 object to query available device.
+            FILE_LOG(linfo) << "deregister_file->CreateFileA method failure.";
+            return -1;
+        }
+
+        BASE_DEVICE_QUERY* query = new BASE_DEVICE_QUERY();
+        query->DeviceNumber = DeviceNumber;
+
+        // success, now query the device 0 for available device object.
+        if (!DeviceIoControl(
+            Device,
+            IOCTL_DEREGISTER_FILE_FROM_DEVICE,
+            (LPVOID)query,
+            sizeof(BASE_DEVICE_QUERY),
+            (LPVOID)query,
+            sizeof(BASE_DEVICE_QUERY),
+            &BytesReturned,
+            NULL
+        ))
+        {
+            // no available device object, so return error
+            FILE_LOG(linfo) << "deregister_file->DeviceIoControl:IOCTL_DEREGISTER_FILE_FROM_DEVICE failure";
+            delete query;
+            CloseHandle(Device);
+            return -1;
+        }
+
+        // success
+        FILE_LOG(linfo) << "deregister_file method completed successfully.";
+        CloseHandle(Device);
+        delete query;
+        return 1;
+    }
+
+    void FilediskProxyNative::delete_objects(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        UnmapViewOfFile(ctx->shmMappedBuffer);
+        CloseHandle(ctx->shmHandle);
+        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: shm released";
+        CloseHandle(ctx->DriverRequestDataSet);
+        CloseHandle(ctx->ProxyIdle);
+        CloseHandle(ctx->RequestComplete);
+        CloseHandle(ctx->Shutdown);
+        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: events released";
+        CloseHandle(ctx->pipe);
+        ctx->pipe = NULL;
+        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: pipe deleted";
+    }
     // delete the entire session context and all it's handles and configuration.
     BOOL FilediskProxyNative::delete_ctx(int64_t ctxref)
     {
@@ -45,6 +119,9 @@ namespace FilediskProxyNative
         sprintf_s(link, 256, "%s%u", DEVICE_NAME_APP, DeviceNumber);
         WCHAR* DeviceLink = commonMethods::ConvertCharToUnicode(link, 256);
 
+        // first deregister the file so that the driver device shuts down
+        //deregister_file(ctxref);
+
         // open the device
         HANDLE Device = CreateFileA(
             volName,                      // lpFileName
@@ -68,20 +145,7 @@ namespace FilediskProxyNative
         // success, set the configuration and end the loop
         FILE_LOG(linfo) << "FilediskProxyNative::delete_ctx->CreateFileA success 1 at " << link;
 
-        if (DeviceIoControl(
-            Device,
-            FSCTL_LOCK_VOLUME,
-            NULL,
-            0,
-            NULL,
-            0,
-            &BytesReturned,
-            NULL
-        ))
-        {
-            FILE_LOG(linfo) << "FilediskProxyNative::delete_ctx->DeviceIoControl:FSCTL_LOCK_VOLUME success 2 at " << link;
-        }
-
+        /*
         if (DeviceIoControl(
             Device,
             IOCTL_DEREGISTER_FILE,
@@ -94,6 +158,22 @@ namespace FilediskProxyNative
         ))
         {
             FILE_LOG(linfo) << "FilediskProxyNative::delete_ctx->DeviceIoControl:IOCTL_DEREGISTER_FILE success 3 at " << link;
+        }
+        */
+
+
+        if (DeviceIoControl(
+            Device,
+            FSCTL_LOCK_VOLUME,
+            NULL,
+            0,
+            NULL,
+            0,
+            &BytesReturned,
+            NULL
+        ))
+        {
+            FILE_LOG(linfo) << "FilediskProxyNative::delete_ctx->DeviceIoControl:FSCTL_LOCK_VOLUME success 2 at " << link;
         }
 
         if (DeviceIoControl(
@@ -125,13 +205,10 @@ namespace FilediskProxyNative
         }
 
         CloseHandle(Device);
+
         DefineDosDevice(DDD_REMOVE_DEFINITION, DriveNameAlphabet, NULL);
         NotifyWindows(ctxref, FALSE);
-        UnmapViewOfFile(ctx->shmMappedBuffer);
-        CloseHandle(ctx->shmHandle);
-        CloseHandle(ctx->DriverRequestDataSet);
-        CloseHandle(ctx->ProxyIdle);
-        CloseHandle(ctx->RequestComplete);
+
         FILE_LOG(linfo) << "FilediskProxyNative::delete_ctx completed successfully.";
         delete[] DeviceLink;
         delete[] DriveNameAlphabet;
@@ -139,8 +216,9 @@ namespace FilediskProxyNative
 
     }
 
+
     // initialize new session context and initialize everything including kernel driver handles and shared memory
-    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, OUT int64_t& ctxOut)
+    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t& ctxOut)
     {
 
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started";
@@ -148,6 +226,8 @@ namespace FilediskProxyNative
         ctx->DriveLetter = DriveLetter;
         ctx->fileConfig = new OPEN_FILE_INFORMATION();
         ctx->fileConfig->FileSize.QuadPart = filesize;
+        ctx->usePipe = usePipe;
+        ctx->fileConfig->usePipe = usePipe;
 
         if (!FindInitializeAvailableDevice((int64_t)ctx))
         {
@@ -166,6 +246,13 @@ namespace FilediskProxyNative
         {
             // error in opening events, abort with error
             FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->OpenSharedMemory error. aborted.";
+            return FALSE;
+        }
+
+        if (!CreateIoPipe((int64_t)ctx))
+        {
+            // error in opening events, abort with error
+            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateIoPipe error. aborted.";
             return FALSE;
         }
 
@@ -403,6 +490,8 @@ namespace FilediskProxyNative
 
         char link[512];
         int devicenumber = ctx->DeviceNumber;
+
+        // Event 1
         memset(link, 0, 512);
         sprintf_s(link, 512, "%s%u", USERMODEAPP_REQUESTDATAEVENT_NAME, devicenumber);
         WCHAR* wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
@@ -417,6 +506,7 @@ namespace FilediskProxyNative
             return FALSE;
         }
 
+        // Event 2
         memset(link, 0, 512);
         sprintf_s(link, 512, "%s%u", USERMODEAPP_PROXYIDLEEVENT_NAME, devicenumber);
         wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
@@ -431,6 +521,7 @@ namespace FilediskProxyNative
             return FALSE;
         }
 
+        // Event 3
         memset(link, 0, 512);
         sprintf_s(link, 512, "%s%u", USERMODEAPP_REQUESTCOMPLETEEVENT_NAME, devicenumber);
         wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
@@ -444,6 +535,22 @@ namespace FilediskProxyNative
             FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->OpenKernelDriverEvents: RequestComplete Event open failure";
             return FALSE;
         }
+
+        // Event 4
+        memset(link, 0, 512);
+        sprintf_s(link, 512, "%s%u", USERMODEAPP_SHUTDOWNEVENT_NAME, devicenumber);
+        wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
+        ctx->Shutdown = OpenEvent(EVENT_ALL_ACCESS, FALSE, wcharlink);
+
+        // delete it
+        delete[] wcharlink;
+
+        if (ctx->Shutdown == NULL)
+        {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->OpenKernelDriverEvents: Shutdown Event open failure";
+            return FALSE;
+        }
+
 
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->OpenKernelDriverEvents completed, all events opened successfully.";
         return TRUE;
@@ -480,6 +587,55 @@ namespace FilediskProxyNative
         return TRUE;
     }
 
+    BOOL FilediskProxyNative::CreateIoPipe(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateIoPipe started";
+
+        char link[512];
+        WCHAR* wcharlink;
+        int devicenumber = ctx->DeviceNumber;
+        memset(link, 0, 512);
+        sprintf_s(link, 512, "%s%u", PIPE_NAME_USERMODEAPP, devicenumber);
+        wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
+
+        // Setup the named pipe with a security attribute so it is open to anyone that enquires.
+        SECURITY_ATTRIBUTES sa;
+        SECURITY_DESCRIPTOR sd;
+        InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+        SetSecurityDescriptorDacl(&sd, TRUE, (PACL)NULL, FALSE);
+        sa.nLength = (DWORD)sizeof(SECURITY_ATTRIBUTES);
+        sa.lpSecurityDescriptor = (LPVOID)&sd;
+        sa.bInheritHandle = TRUE;
+
+        ctx->pipe = CreateNamedPipe(
+            wcharlink, // name of the pipe
+            PIPE_ACCESS_DUPLEX, // 2 way pipe
+//            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT | PIPE_ACCEPT_REMOTE_CLIENTS, //| PIPE_READMODE_BYTE | PIPE_WAIT,// | FILE_FLAG_WRITE_THROUGH, // send data as a byte stream
+            PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,// | FILE_FLAG_WRITE_THROUGH, // send data as a byte stream
+            1, // only allow 1 instance of this pipe
+            DEVICE_OBJECT_SHM_SIZE_BYTES, // no outbound buffer
+            DEVICE_OBJECT_SHM_SIZE_BYTES, // no inbound buffer
+            NMPWAIT_USE_DEFAULT_WAIT, //0, // use default wait time
+            &sa // use default security attributes
+        );
+        if (ctx->pipe == NULL || ctx->pipe == INVALID_HANDLE_VALUE)
+        {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateIoPipe->CreateNamedPipe::requestPipe creation failure.";
+            delete[] wcharlink;
+            return FALSE;
+        }
+
+        //success
+
+        delete[] wcharlink;
+
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateIoPipe completed successfully. server-pipe i/o pipe created.";
+        return TRUE;
+
+    }
+
     // set/reset Event
     void FilediskProxyNative::SetEventDriverRequestDataSet(int64_t ctxref, BOOL set)
     {
@@ -513,6 +669,17 @@ namespace FilediskProxyNative
             ResetEvent(ctx->RequestComplete);
     }
 
+    // set/reset Event
+    void FilediskProxyNative::SetEventShutdown(int64_t ctxref, BOOL set)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        if (set)
+            SetEvent(ctx->Shutdown);
+        else
+            ResetEvent(ctx->Shutdown);
+    }
+
     DWORD FilediskProxyNative::WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
@@ -535,7 +702,7 @@ namespace FilediskProxyNative
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
         PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)ctx->shmMappedBuffer;
-        byteOffset = request->ByteOffset.QuadPart;
+        byteOffset = request->ByteOffset;
         length = request->Length;
         function = request->MajorFunction;
         totalBytesReadWrite = request->totalBytesReadWrite;
@@ -547,7 +714,7 @@ namespace FilediskProxyNative
         PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)ctx->shmMappedBuffer;
         
         if (byteOffset != NULL)
-            request->ByteOffset.QuadPart = byteOffset;
+            request->ByteOffset = byteOffset;
 
         if (length != NULL)
             request->Length = length;
@@ -575,6 +742,89 @@ namespace FilediskProxyNative
         LPBYTE procBuffer = (LPBYTE)ctx->shmMappedBuffer;
         procBuffer += SHM_HEADER_SIZE;
         GlobalBuffers::CopyGlobalBuffers(inputBuffer, 0, procBuffer, 0, length);
+    }
+
+    void FilediskProxyNative::ReadPipe(int64_t ctxref, void* outputBuffer, size_t length)
+    {
+        DWORD bytesDone;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        ReadFile(ctx->pipe, outputBuffer, length, &bytesDone, NULL);
+   //     commonMethods::fastPipeToBuffer(outputBuffer, ctx->pipe, 0, length);
+        //FILE_LOG(linfo) << "ioPipe::ReadPipe at " << ctx->request->ByteOffset;
+    }
+
+    void FilediskProxyNative::WritePipe(int64_t ctxref, void* inputBuffer, size_t length)
+    {
+        DWORD bytesDone;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        WriteFile(ctx->pipe, inputBuffer, length, &bytesDone, NULL);
+        FlushFileBuffers(ctx->pipe);
+ //       commonMethods::fastBufferToPipe(inputBuffer, ctx->pipe, 0, length);
+        //FILE_LOG(linfo) << "WritePipe at " << ctx->request->ByteOffset;
+    }
+
+    BOOL FilediskProxyNative::Step1PipeGetRequest(int64_t ctxref, OUT uint64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite)
+    {
+        BOOL result;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        // reset and clean the context configuration
+        memset(&ctx->__requestBuffer, 0, REQUEST_BUFFER_SIZE);
+        ctx->requestSet = false;
+
+        // success, now receive the request
+        result = ReadFile(ctx->pipe, &ctx->__requestBuffer, sizeof(CONTEXT_REQUEST), &ctx->request->totalBytesReadWrite, NULL);
+        ctx->requestSet = true;
+
+        // set output destinations with received request
+        byteOffset = ctx->request->ByteOffset;
+        length = ctx->request->Length;
+        function = ctx->request->MajorFunction;
+        totalBytesReadWrite = ctx->request->totalBytesReadWrite;
+
+        /*
+        if (function == IRP_MJ_READ)
+            FILE_LOG(linfo) << "Step1PipeGetRequest::IRP_MJ_READ";
+        else
+            FILE_LOG(linfo) << "Step1PipeGetRequest::IRP_MJ_WRITE";
+
+        if (ctx->request->signature == DRIVER_SIGNATURE)
+        {
+            FILE_LOG(linfo) << "Step1PipeGetRequest: driver's signature matched.";
+        }
+        else
+        {
+            FILE_LOG(linfo) << "Step1PipeGetRequest: driver's signature did not match. failure...";
+        }
+        */
+        return TRUE;
+    }
+
+    int FilediskProxyNative::ConnectPipe(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        if (ctx->pipe == NULL)
+            return -2;
+
+        // This call blocks until a client process connects to the pipe
+        BOOL status = ConnectNamedPipe(ctx->pipe, NULL);
+        if (status == FALSE)
+            FILE_LOG(linfo) << "ConnectPipe failure";
+        return status;
+    }
+
+    int FilediskProxyNative::DisconnectPipe(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        if (ctx->pipe == NULL)
+            return -2;
+
+        // completed. disconnect and go to the next round which is i/o
+        return DisconnectNamedPipe(ctx->pipe);
     }
 
 }

@@ -1,5 +1,14 @@
 #pragma once
 
+
+#include <tchar.h>
+#include <stdio.h>
+#include <strsafe.h>
+#include <stdlib.h>
+#include <tchar.h>
+#include <string.h> // CBC mode, for memset
+#include <assert.h>     /* assert */
+
 #ifndef __T
 #ifdef _NTDDK_
 #define __T(x) L ## x
@@ -24,6 +33,7 @@ static const char BASE_DEVICE_LINK_NAME_APP[] = "\\\\.\\FileDisk0";
 #define DEVICE_OBJECT_SHM_EVENT_REQUEST_DATA L"\\BaseNamedObjects\\FileDiskReqData"
 #define DEVICE_OBJECT_SHM_EVENT_PROXY_IDLE L"\\BaseNamedObjects\\FileDiskProxyIdle"
 #define DEVICE_OBJECT_SHM_REQUESTCOMPLETE L"\\BaseNamedObjects\\FileDiskRC"
+#define DEVICE_OBJECT_SHM_SHUTDOWN L"\\BaseNamedObjects\\FileDiskShutdown"
 #define DEVICE_OBJECT_SHM_SEMAPHORE L"\\BaseNamedObjects\\FileDiskSHMSync"
 #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
 #define SHM_HEADER_SIZE 4096
@@ -39,12 +49,18 @@ static const char USERMODEAPP_SHM_NAME[] = "Global\\FileDiskSHM";
 static const char USERMODEAPP_REQUESTDATAEVENT_NAME[] = "Global\\FileDiskReqData";
 static const char USERMODEAPP_PROXYIDLEEVENT_NAME[] = "Global\\FileDiskProxyIdle";
 static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC";
+static const char USERMODEAPP_SHUTDOWNEEVENT_NAME[] = "Global\\FileDiskShutdown";
 static const char USERMODEAPP_SHM_SEMAPHORE_NAME[] = "Global\\FileDiskSHMSync";
 
-#define REQUESTPIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskReqPipe"
-static const char USERMODEAPP_REQUEST_PIPE_NAME[] = "\\\\.\\pipe\\FileDiskReqPipe";
-static const int PIPE_BUFFER_SIZE = 1024;
-static const int PIPE_BUFFER_SIZE_TRUE = 4096;
+//#define REQUESTPIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskReqPipe"
+//static const char USERMODEAPP_REQUEST_PIPE_NAME[] = "\\\\.\\pipe\\FileDiskReqPipe";
+//#define PIPE_NAME_DRIVER L"\\DosDevices\\pipe\\FileDiskPipe" // L"\\??\\pipe\\FileDiskPipe"
+#define PIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskPipe"
+static const char PIPE_NAME_USERMODEAPP[] = "\\\\.\\pipe\\FileDiskPipe";
+static const int PIPE_BUFFER_SIZE = 1048576;
+#define REQUEST_BUFFER_SIZE 1025
+
+//static const int PIPE_BUFFER_SIZE_TRUE = 4096;
 
 //static const char SERVER_CLIENT_SHM_EVENT_REQUEST[] = "Global\\FileDiskReqData0";
 //static const WCHAR DEVICE_OBJECT_SHM_EVENT_PROXY_IDLE[] = L"Global\\FileDiskProxyIdle";
@@ -66,8 +82,9 @@ typedef struct _OPEN_FILE_INFORMATION {
     CHAR            FileName[256];
     BOOLEAN         DriverReply;
     ULONG           DeviceNumber;
-    HANDLE          shmSemaphoreSync;
-    ULONG           requestCtr;
+    BOOL            usePipe;
+    //HANDLE          shmSemaphoreSync;
+    //ULONG           requestCtr;
 } OPEN_FILE_INFORMATION, * POPEN_FILE_INFORMATION;
 
 typedef struct _BASE_DEVICE_QUERY {
@@ -76,11 +93,11 @@ typedef struct _BASE_DEVICE_QUERY {
 
 typedef struct _CONTEXT_REQUEST {
     UCHAR MajorFunction;
-    LARGE_INTEGER ByteOffset;
+    UINT64 ByteOffset;
     ULONG Length;
     DWORD totalBytesReadWrite;
  //   ULONG reply;
-//    ULONG signature;
+    ULONG signature;
  //   ULONG requestCtr;
     //char signature[32];
 }CONTEXT_REQUEST, * PCONTEXT_REQUEST;
@@ -98,7 +115,6 @@ static const char SIGNATURE_HELLO[] = "HELLO";
 #define IOCTL_DEREGISTER_FILE  CTL_CODE(FILE_DEVICE_DISK, 0x804, METHOD_BUFFERED, FILE_ANY_ACCESS) 
 #define IOCTL_TEST  CTL_CODE(FILE_DEVICE_DISK, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS) 
 #define IOCTL_FINDAVAILABLEDEVICE  CTL_CODE(FILE_DEVICE_DISK, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS) 
+#define IOCTL_DEREGISTER_FILE_FROM_DEVICE  CTL_CODE(FILE_DEVICE_DISK, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS) 
 
 #define LOG_FILE_NAME_PATH L"\\DosDevices\\C:\\FileDiskProxyDevice"
-
-

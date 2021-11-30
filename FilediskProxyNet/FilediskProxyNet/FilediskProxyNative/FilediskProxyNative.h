@@ -48,6 +48,7 @@ namespace FilediskProxyNative {
     static const char USERMODEAPP_REQUESTDATAEVENT_NAME[] = "Global\\FileDiskReqData";
     static const char USERMODEAPP_PROXYIDLEEVENT_NAME[] = "Global\\FileDiskProxyIdle";
     static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC";
+    static const char USERMODEAPP_SHUTDOWNEVENT_NAME[] = "Global\\FileDiskShutdown";
 
     static const char USERMODEAPP_SHM_NAME[] = "Global\\FileDiskSHM";
     #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
@@ -158,6 +159,97 @@ namespace FilediskProxyNative {
             return wcharstring;
         }
 
+
+        static void ReadPipeToBuffer(LPBYTE buffer, HANDLE pipe, size_t size)
+        {
+            BOOL result;
+            DWORD bytesDone;
+            uint64_t totalVectors = 1; // 1 Vectors of 32 bytes each makes 32 total bytes copy
+            size_t stride = totalVectors * PIPE_BUFFER_SIZE;
+
+            while (size)
+            {
+                result = ReadFile(pipe, buffer, stride, &bytesDone, NULL);
+                size -= stride;
+                buffer += stride;
+            }
+        }
+
+        static void fastPipeToBuffer(LPVOID buffer, HANDLE pipe, size_t pos, size_t nBytes) {
+
+            BOOL result;
+            DWORD bytesDone;
+            double double_totalBlocks = (double)nBytes / (double)PIPE_BUFFER_SIZE;
+            int64_t ltotalBlocks_floor = (int64_t)floor(double_totalBlocks);
+            int64_t ltotalBlocks_ceiling = (int64_t)ceil(double_totalBlocks);
+            int64_t lProcessingBytes = 0;
+
+            // set buffer offset
+            LPBYTE dest = (LPBYTE)buffer;
+            dest += pos;
+
+            // copy all the blocks of PIPE_BUFFER_SIZE number of bytes
+            lProcessingBytes = ltotalBlocks_floor * PIPE_BUFFER_SIZE;
+            ReadPipeToBuffer(dest, pipe, lProcessingBytes);
+
+            pos += lProcessingBytes;
+            dest += lProcessingBytes;
+
+            int64_t lremainingBytes = nBytes - lProcessingBytes;
+            if (lremainingBytes > 0)
+            {
+                result = ReadFile(pipe, dest, lremainingBytes, &bytesDone, NULL);
+                pos += lremainingBytes;
+                dest += lremainingBytes;
+            }
+        }
+
+        static void WriteBufferToPipe(LPBYTE buffer, HANDLE pipe, size_t size)
+        {
+            BOOL result;
+            DWORD bytesDone;
+            uint64_t totalVectors = 1; // 1 Vectors of 32 bytes each makes 32 total bytes copy
+            size_t stride = totalVectors * PIPE_BUFFER_SIZE;
+
+            while (size)
+            {
+                result = WriteFile(pipe, buffer, stride, &bytesDone, NULL);
+                FlushFileBuffers(pipe);
+                size -= stride;
+                buffer += stride;
+            }
+        }
+
+        static void fastBufferToPipe(LPVOID buffer, HANDLE pipe, size_t pos, size_t nBytes) {
+
+            BOOL result;
+            DWORD bytesDone;
+            double double_totalBlocks = (double)nBytes / (double)PIPE_BUFFER_SIZE;
+            int64_t ltotalBlocks_floor = (int64_t)floor(double_totalBlocks);
+            int64_t ltotalBlocks_ceiling = (int64_t)ceil(double_totalBlocks);
+            int64_t lProcessingBytes = 0;
+
+            // set buffer offset
+            LPBYTE src = (LPBYTE)buffer;
+            src += pos;
+
+            // copy all the blocks of PIPE_BUFFER_SIZE number of bytes
+            lProcessingBytes = ltotalBlocks_floor * PIPE_BUFFER_SIZE;
+            WriteBufferToPipe(src, pipe, lProcessingBytes);
+
+            pos += lProcessingBytes;
+            src += lProcessingBytes;
+
+            int64_t lremainingBytes = nBytes - lProcessingBytes;
+            if (lremainingBytes > 0)
+            {
+                result = WriteFile(pipe, src, lremainingBytes, &bytesDone, NULL);
+                FlushFileBuffers(pipe);
+                pos += lremainingBytes;
+                src += lremainingBytes;
+            }
+        }
+
 #pragma endregion
     };
 
@@ -180,8 +272,16 @@ namespace FilediskProxyNative {
         HANDLE DriverRequestDataSet;
         HANDLE ProxyIdle;
         HANDLE RequestComplete;
+        HANDLE Shutdown;
         HANDLE shmHandle;
         LPVOID shmMappedBuffer;
+
+        BOOL usePipe;
+        HANDLE pipe;
+
+        BYTE __requestBuffer[REQUEST_BUFFER_SIZE];
+        PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)&__requestBuffer;
+        BOOL requestSet = FALSE;
 
     };
 
@@ -212,14 +312,18 @@ namespace FilediskProxyNative {
 
         static BOOL OpenKernelDriverEvents(int64_t ctxref);
         static BOOL OpenSharedMemory(int64_t ctxref);
+        static BOOL CreateIoPipe(int64_t ctxref);
         static BOOL FindInitializeAvailableDevice(int64_t ctxref);
         static int FindAvailableDevice();
-        BOOL init_ctx(UCHAR DriveLetter, size_t filesize, OUT int64_t& ctxOut);
+        static int deregister_file(int64_t ctxref);
+        BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t& ctxOut);
         static BOOL delete_ctx(int64_t ctxref);
+        static void delete_objects(int64_t ctxref);
 
         static void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
         static void SetEventProxyIdle(int64_t ctxref, BOOL set);
         static void SetEventRequestComplete(int64_t ctxref, BOOL set);
+        static void SetEventShutdown(int64_t ctxref, BOOL set);
         static void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
         static DWORD WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
@@ -228,6 +332,12 @@ namespace FilediskProxyNative {
         static void SetSHMHeader(int64_t ctxref, int64_t byteOffset, DWORD length, UCHAR function, DWORD totalBytesReadWrite);
         static void GetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, void* outputBuffer);
         static void SetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, void* inputBuffer);
+        static BOOL Step1PipeGetRequest(int64_t ctxref, OUT uint64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite);
+        static void ReadPipe(int64_t ctxref, void* outputBuffer, size_t length);
+        static void WritePipe(int64_t ctxref, void* inputBuffer, size_t length);
+        static int ConnectPipe(int64_t ctxref);
+        static int DisconnectPipe(int64_t ctxref);
+        //static void delete_pipes(int64_t ctxref);
 
 #pragma endregion
 
