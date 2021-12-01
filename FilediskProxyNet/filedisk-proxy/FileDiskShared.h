@@ -34,10 +34,13 @@ static const char BASE_DEVICE_LINK_NAME_APP[] = "\\\\.\\FileDisk0";
 #define DEVICE_OBJECT_SHM_EVENT_PROXY_IDLE L"\\BaseNamedObjects\\FileDiskProxyIdle"
 #define DEVICE_OBJECT_SHM_REQUESTCOMPLETE L"\\BaseNamedObjects\\FileDiskRC"
 #define DEVICE_OBJECT_SHM_SHUTDOWN L"\\BaseNamedObjects\\FileDiskShutdown"
+#define DEVICE_OBJECT_SHM_SHUTDOWNCOMPLETE L"\\BaseNamedObjects\\FileDiskShutdownComplete"
 #define DEVICE_OBJECT_SHM_SEMAPHORE L"\\BaseNamedObjects\\FileDiskSHMSync"
 #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
 #define SHM_HEADER_SIZE 4096
 #define BACKEND_VHD_FILE_SIZE 1048576000 // 1 GB
+
+#define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
 
 static const ULONG DRIVER_SIGNATURE = 5555;
 static const ULONG USERMODEAPP_SIGNATURE = 8888;
@@ -49,7 +52,8 @@ static const char USERMODEAPP_SHM_NAME[] = "Global\\FileDiskSHM";
 static const char USERMODEAPP_REQUESTDATAEVENT_NAME[] = "Global\\FileDiskReqData";
 static const char USERMODEAPP_PROXYIDLEEVENT_NAME[] = "Global\\FileDiskProxyIdle";
 static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC";
-static const char USERMODEAPP_SHUTDOWNEEVENT_NAME[] = "Global\\FileDiskShutdown";
+static const char USERMODEAPP_SHUTDOWNEVENT_NAME[] = "Global\\FileDiskShutdown";
+static const char USERMODEAPP_SHUTDOWNCOMPLETEEVENT_NAME[] = "Global\\FileDiskShutdownComplete";
 static const char USERMODEAPP_SHM_SEMAPHORE_NAME[] = "Global\\FileDiskSHMSync";
 
 //#define REQUESTPIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskReqPipe"

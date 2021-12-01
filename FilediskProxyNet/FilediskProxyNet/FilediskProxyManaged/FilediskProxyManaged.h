@@ -39,19 +39,16 @@ namespace FilediskProxyManaged {
 
 	public ref class FilediskProxyManaged
 	{
-		// TODO: Add your methods for this class here.
-		// todo: this library is .net based and works as the interop wrapper between the native C++ Library and the C# .Net Application Server.
 
 
 	public:
 		FilediskProxyManaged();
 
-		//int fastAesCBC_DynamicSize(int64_t ctxref, bool encrypt, int64_t prevStateIV, int64_t newStateIV, int64_t pvSrc, size_t srcIndex, size_t nBytes, int64_t lastBlockOutput,
-		//	OUT int64_t% lastBlockIndex, OUT int64_t% lastBlockProcessingBytes);
-		//int fastAesCTR_DynamicSize(int64_t ctxref, int64_t pvSrc, size_t srcIndex, size_t nBytes, int64_t lastBlockOutput,
-		//	OUT int64_t% lastBlockIndex, OUT int64_t% lastBlockProcessingBytes);
-		//void aes_init_cbc_ctr(int64_t encryptionKey, int64_t encryptionIV, OUT int64_t% ctxOut);
-		//void aes_delete_ctx(int64_t ctxref);
+
+		// TODO: Add your methods for this class here.
+		// todo: this library is .net based and works as the interop wrapper between the native C++ Library and the C# .Net Application Server.
+
+
 
 		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t% ctxOut);
 		BOOL delete_ctx(int64_t ctxref);
@@ -59,10 +56,13 @@ namespace FilediskProxyManaged {
 		void SetEventProxyIdle(int64_t ctxref, BOOL set);
 		void SetEventRequestComplete(int64_t ctxref, BOOL set);
 		void SetEventShutdown(int64_t ctxref, BOOL set);
+		void SetEventShutdownComplete(int64_t ctxref, BOOL set);
 		void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
 		uint32_t WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventRequestComplete(int64_t ctxref, DWORD miliSeconds);
+		DWORD WaitEventShutdownComplete(int64_t ctxref, DWORD miliSeconds);
+		int isEventSignalled(HANDLE hEvent);
 		void GetSHMHeader(int64_t ctxref, OUT int64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite);
 		void SetSHMHeader(int64_t ctxref, int64_t byteOffset, DWORD length, UCHAR function, DWORD totalBytesReadWrite);
 		void GetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, int64_t outputBuffer);

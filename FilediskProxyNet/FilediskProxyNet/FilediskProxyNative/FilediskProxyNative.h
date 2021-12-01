@@ -45,13 +45,13 @@ namespace FilediskProxyNative {
 #endif)
 
 
-    static const char USERMODEAPP_REQUESTDATAEVENT_NAME[] = "Global\\FileDiskReqData";
-    static const char USERMODEAPP_PROXYIDLEEVENT_NAME[] = "Global\\FileDiskProxyIdle";
-    static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC";
-    static const char USERMODEAPP_SHUTDOWNEVENT_NAME[] = "Global\\FileDiskShutdown";
+    //static const char USERMODEAPP_REQUESTDATAEVENT_NAME[] = "Global\\FileDiskReqData";
+    //static const char USERMODEAPP_PROXYIDLEEVENT_NAME[] = "Global\\FileDiskProxyIdle";
+    //static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC";
+    //static const char USERMODEAPP_SHUTDOWNEVENT_NAME[] = "Global\\FileDiskShutdown";
 
-    static const char USERMODEAPP_SHM_NAME[] = "Global\\FileDiskSHM";
-    #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
+//    static const char USERMODEAPP_SHM_NAME[] = "Global\\FileDiskSHM";
+ //   #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
 
     static const char BASEDEVICE_NAME_APP[] = "\\Device\\FileDisk\\FileDisk0";
     static const char DEVICE_NAME_APP[] = "\\Device\\FileDisk\\FileDisk";
@@ -273,6 +273,7 @@ namespace FilediskProxyNative {
         HANDLE ProxyIdle;
         HANDLE RequestComplete;
         HANDLE Shutdown;
+        HANDLE ShutdownComplete;
         HANDLE shmHandle;
         LPVOID shmMappedBuffer;
 
@@ -287,26 +288,18 @@ namespace FilediskProxyNative {
 
     class FilediskProxyNative
     {
-        // TODO: Add your methods for this class here.
-        // todo: this class is the core of the interop between C++ Native and C# .Net Application.
 
     public:
 
         FilediskProxyNative();
 
-//        static int fastAesCBC_DynamicSize(int64_t ctxref, bool encrypt, int64_t prevStateIV, int64_t newStateIV, int64_t pvSrc, size_t srcIndex, size_t nBytes, int64_t lastBlockOutput,
-  //          OUT int64_t& lastBlockIndex, OUT int64_t& lastBlockProcessingBytes);
-    //    static int fastAesCTR_DynamicSize(int64_t ctxref, int64_t pvSrc, size_t srcIndex, size_t nBytes, int64_t lastBlockOutput,
-      //      OUT int64_t& lastBlockIndex, OUT int64_t& lastBlockProcessingBytes);
-        //static void aes_init_cbc_ctr(int64_t encryptionKey, int64_t encryptionIV, OUT int64_t& ctxOut);
-//        static void aes_delete_ctx(int64_t ctxref);
-
+        // TODO: Add your methods for this class here.
+        // todo: this class is the core of the interop between C++ Native and C# .Net Application.
 
 
 #pragma region "filedisk proxy context based primary methods"
 
 
-    // initialize
         FILE* log_fd;
 
 
@@ -324,10 +317,13 @@ namespace FilediskProxyNative {
         static void SetEventProxyIdle(int64_t ctxref, BOOL set);
         static void SetEventRequestComplete(int64_t ctxref, BOOL set);
         static void SetEventShutdown(int64_t ctxref, BOOL set);
+        static void SetEventShutdownComplete(int64_t ctxref, BOOL set);
         static void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
         static DWORD WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventRequestComplete(int64_t ctxref, DWORD miliSeconds);
+        static DWORD WaitEventShutdownComplete(int64_t ctxref, DWORD miliSeconds);
+        static int isEventSignalled(HANDLE hEvent);
         static void GetSHMHeader(int64_t ctxref, OUT int64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite);
         static void SetSHMHeader(int64_t ctxref, int64_t byteOffset, DWORD length, UCHAR function, DWORD totalBytesReadWrite);
         static void GetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, void* outputBuffer);
@@ -337,16 +333,10 @@ namespace FilediskProxyNative {
         static void WritePipe(int64_t ctxref, void* inputBuffer, size_t length);
         static int ConnectPipe(int64_t ctxref);
         static int DisconnectPipe(int64_t ctxref);
-        //static void delete_pipes(int64_t ctxref);
 
 #pragma endregion
 
     private:
-
-        //static int __fastAesCBC_DynamicSize(int64_t ctxref, bool encrypt, int64_t prevStateIV, int64_t newStateIV, int64_t pvSrc, size_t srcIndex, size_t nBytes, int64_t lastBlockOutput,
-        //    OUT int64_t& lastBlockIndex, OUT int64_t& lastBlockProcessingBytes);
-        //static void __Process_Aes_Block_CBC(AES_ctx* ctx, bool encrypt, uint8_t* buffer, int inputbufferoffset, size_t length);
-        //static void __Process_Aes_Block_CTR(AES_ctx* ctx, uint8_t* buffer, int inputbufferoffset, size_t length);
 
 
     };

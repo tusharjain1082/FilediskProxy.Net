@@ -51,6 +51,11 @@ namespace FilediskProxyManaged {
         this->_nativePtr->SetEventShutdown(ctxref, set);
     }
 
+    void FilediskProxyManaged::SetEventShutdownComplete(int64_t ctxref, BOOL set)
+    {
+        this->_nativePtr->SetEventShutdownComplete(ctxref, set);
+    }
+
     // notifies the windows about drive add or remove
     void FilediskProxyManaged::NotifyWindows(int64_t ctxref, BOOL DriveAdded)
     {
@@ -70,7 +75,15 @@ namespace FilediskProxyManaged {
     uint32_t FilediskProxyManaged::WaitEventRequestComplete(int64_t ctxref, DWORD miliSeconds)
     {
         return this->_nativePtr->WaitEventRequestComplete(ctxref, miliSeconds);
+    }
 
+    DWORD FilediskProxyManaged::WaitEventShutdownComplete(int64_t ctxref, DWORD miliSeconds)
+    {
+        return this->_nativePtr->WaitEventShutdownComplete(ctxref, miliSeconds);
+    }
+    int FilediskProxyManaged::isEventSignalled(HANDLE hEvent)
+    {
+        return this->_nativePtr->isEventSignalled(hEvent);
     }
 
     void FilediskProxyManaged::GetSHMHeader(int64_t ctxref, OUT int64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite)

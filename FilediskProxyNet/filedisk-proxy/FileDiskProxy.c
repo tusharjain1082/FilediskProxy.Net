@@ -100,6 +100,9 @@ typedef struct _DEVICE_EXTENSION {
     PVOID                   	pShutdownObj;
     HANDLE                      Shutdown;
     PKEVENT                     KeShutdownObj;
+    PVOID                   	pShutdownCompleteObj;
+    HANDLE                      ShutdownComplete;
+    PKEVENT                     KeShutdownCompleteObj;
 
     // pipelines
     //HANDLE                      hReqServerPipe;
@@ -394,7 +397,8 @@ FileDiskCreateDevice(
     );
     */
 
-    // todo tushar
+    // todo tushar: create the base base command and request device (this isn't any virtual drive)
+    // device at index 0, is the base query command and request device
     if (Number == 0)
     {
         status = IoCreateDevice(
@@ -1510,7 +1514,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
     LARGE_INTEGER timeout = { 0,0 };
     timeout.QuadPart = 100;
     LARGE_INTEGER timeout2 = { 0,0 };
-    timeout2.QuadPart = 1000000; // 1 millisecond
+    timeout2.QuadPart = 100; // 1000000; // 1 millisecond
 
     // phase 1: open pipe in spin lock loop or directly if no problem
 
@@ -1518,13 +1522,12 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
     KeSetEvent(device_extension->KeDriverRequestDataSetObj, 100, TRUE);
     KeDelayExecutionThread(KernelMode, FALSE, &timeout);
 
-
     while (TRUE)
     {
         status = openPipe(device_object);
         if (status != STATUS_SUCCESS) {
             //Log(device_extension->LogFileDevice, "openPipe requestPipe failure.");
-//            KeDelayExecutionThread(KernelMode, FALSE, &timeout);
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout);
             continue;
         }
         else
@@ -1535,7 +1538,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
     }
     //Log(device_extension->LogFileDevice, "openPipe success. pipe opened.");
 
-    // phase 3: directly write request buffer to pipe
+    // phase 2: directly write request buffer to pipe
 
     // success
     IO_STATUS_BLOCK iostatus;
@@ -1548,7 +1551,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
 
     //Log(device_extension->LogFileDevice, "request written to pipe. success");
 
-    // phase 4: direct pipe i/o
+    // phase 3: direct pipe i/o
 
     LARGE_INTEGER offsettmp = { 0,0 };
     offsettmp.QuadPart = 0;
@@ -1578,12 +1581,11 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
     // close the pipe as the work has been completed
     closePipe(device_object);
 
-    // phase 5: wait for Proxy Application Server to process entire request and complete and then set the ProxyIdle Event.
+    // phase 4: wait for Proxy Application Server to process entire request and complete and then set the ProxyIdle Event.
 
     // we cannot use indefinite wait, so we use spin lock loop which is breakable by user's command
     while (TRUE)
     {
-
         // wait for proxy idle event to occur, meaning until the proxy app processes entire request and takes time and completes, then signals the event, we must wait.
         WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, &timeout);// &timeout);
         if (WaitStatus == STATUS_SUCCESS)
@@ -1592,7 +1594,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
             KeResetEvent(device_extension->KeProxyIdleObj);
 
             // delay for proper synchronisation of shared memory buffer and everything else in user mode and kernel mode
-            KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+            //KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
             break;
         }
         else if (WaitStatus == STATUS_TIMEOUT)
@@ -1862,6 +1864,9 @@ FileDiskThread(
 
     //DbgPrint("FileDiskThread %u running \r\n", device_extension->device_number);
 
+    LARGE_INTEGER timeout = { 0,0 };
+    timeout.QuadPart = 100;
+
     for (;;)
     {
         KeWaitForSingleObject(
@@ -1878,25 +1883,23 @@ FileDiskThread(
             PsTerminateSystemThread(STATUS_SUCCESS);
         }
 
+        
         if (!device_extension->media_in_device)
         {
             // todo tushar proper shutdown
             FileDiskClearQueue(device_object);
-            closePipe(device_object);
-            KeSetEvent(device_extension->KeRequestCompleteObj, 100, TRUE);
+            KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout);
             continue;
         }
         
         if (isEventSignalled(device_extension->KeShutdownObj))
         {
             // device/file shutdown event set, so cancel
-
             FileDiskClearQueue(device_object);
-
-            // todo tushar proper shutdown
             // set the final event for the proxy server app to know that the driver has closed the file
-            closePipe(device_object);
-            KeSetEvent(device_extension->KeRequestCompleteObj, 100, TRUE);
+            KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout);
             continue;
         }
         
@@ -1921,14 +1924,14 @@ FileDiskThread(
                 continue;
             }
 
+            
             if (!device_extension->media_in_device)
             {
-                FileDiskClearQueue(device_object);
-
                 // todo tushar proper shutdown
+                FileDiskClearQueue(device_object);
                 // set the final event for the proxy server app to know that the driver has closed the file
-                closePipe(device_object);
-                KeSetEvent(device_extension->KeRequestCompleteObj, 100, TRUE);
+                KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+                KeDelayExecutionThread(KernelMode, FALSE, &timeout);
                 irp->IoStatus.Status = STATUS_CANCELLED;// STATUS_SUCCESS;
                 irp->IoStatus.Information = 0;
                 IoCompleteRequest(
@@ -1942,15 +1945,12 @@ FileDiskThread(
 
             if (isEventSignalled(device_extension->KeShutdownObj))
             {
-                // device/file shutdown event set, so cancel
+                // device/file shutdown event set, so cancel all queue
 
                 FileDiskClearQueue(device_object);
-
-                // todo tushar proper shutdown
                 // set the final event for the proxy server app to know that the driver has closed the file
-                closePipe(device_object);
-                KeSetEvent(device_extension->KeRequestCompleteObj, 100, TRUE);
-
+                KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+                KeDelayExecutionThread(KernelMode, FALSE, &timeout);
                 irp->IoStatus.Status = STATUS_CANCELLED;// STATUS_SUCCESS;
                 irp->IoStatus.Information = 0;
                 IoCompleteRequest(
@@ -1960,7 +1960,7 @@ FileDiskThread(
                 );
                 continue;
             }
-            
+
             // no termination or abortion event/flag was signalled, so continue and process the request
             if (device_extension->usePipe)
             {
@@ -2025,10 +2025,12 @@ FileDiskOpenFile(
     // finally set status
 
     // todo tushar
+    // reset all the events and objects for a new start with a new virtual disk file session context.
     KeResetEvent(device_extension->KeDriverRequestDataSetObj);
     KeResetEvent(device_extension->KeProxyIdleObj);
     KeResetEvent(device_extension->KeRequestCompleteObj);
     KeResetEvent(device_extension->KeShutdownObj);
+    KeResetEvent(device_extension->KeShutdownCompleteObj);
     device_extension->media_in_device = TRUE;
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -2045,6 +2047,8 @@ FileDiskForceCloseFile(
 )
 {
     PDEVICE_EXTENSION device_extension;
+    LARGE_INTEGER timeout = { 0,0 };
+    timeout.QuadPart = 100;
 
     DbgPrint("FileDiskForceCloseFile method running.\r\n");
 
@@ -2053,6 +2057,11 @@ FileDiskForceCloseFile(
     ExFreePool(device_extension->file_name.Buffer);
 
     device_extension->media_in_device = FALSE;
+
+    // todo tushar
+    FileDiskClearQueue(DeviceObject);
+    KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout);
 
     DbgPrint("FileDiskForceCloseFile method completed.\r\n");
     return STATUS_SUCCESS;
@@ -2066,6 +2075,8 @@ FileDiskCloseFile(
 )
 {
     PDEVICE_EXTENSION device_extension;
+    LARGE_INTEGER timeout = { 0,0 };
+    timeout.QuadPart = 100;
 
     PAGED_CODE();
 
@@ -2084,7 +2095,10 @@ FileDiskCloseFile(
 
     device_extension->media_in_device = FALSE;
 
-    // TODO tushar
+    // todo tushar
+    FileDiskClearQueue(DeviceObject);
+    KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout);
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
     Irp->IoStatus.Information = 0;
@@ -2297,11 +2311,43 @@ NTSTATUS CreateSharedEventsKe(PDEVICE_OBJECT device_object)
     }
     device_extension->KeShutdownObj = eventHandle;
 
+    // event 5
+    uEventName.Length = 0;
+    uEventName.MaximumLength = 256;
+    uEventName.Buffer = (PWSTR)symbolicNameBuffer;
+    RtlUnicodeStringPrintf(&uEventName, DEVICE_OBJECT_SHM_SHUTDOWNCOMPLETE L"%u", device_extension->device_number);
+    InitializeObjectAttributes(&ObjectAttributes, &uEventName, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    eventHandle = IoCreateSynchronizationEvent(&uEventName, &device_extension->ShutdownComplete);
+
+    if (eventHandle == NULL)
+    {
+        DbgPrint("CreateSharedEvents - DEVICE_OBJECT_SHM_SHUTDOWNCOMPLETE Event fail!\r\n");
+        ZwClose(device_extension->DriverRequestDataSet);
+        ZwClose(device_extension->ProxyIdle);
+        ZwClose(device_extension->RequestComplete);
+        ZwClose(device_extension->Shutdown);
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    // set security event 5
+    status = SetSecurityAllAccess(device_extension->ShutdownComplete, &device_extension->pShutdownCompleteObj);
+    if (status != STATUS_SUCCESS)
+    {
+        ZwClose(device_extension->DriverRequestDataSet);
+        ZwClose(device_extension->ProxyIdle);
+        ZwClose(device_extension->RequestComplete);
+        ZwClose(device_extension->Shutdown);
+        ZwClose(device_extension->ShutdownComplete);
+        return STATUS_UNSUCCESSFUL;
+    }
+    device_extension->KeShutdownCompleteObj = eventHandle;
+
     // reset initialize
     KeResetEvent(device_extension->KeDriverRequestDataSetObj);
     KeResetEvent(device_extension->KeProxyIdleObj);
     KeResetEvent(device_extension->KeRequestCompleteObj);
     KeResetEvent(device_extension->KeShutdownObj);
+    KeResetEvent(device_extension->KeShutdownCompleteObj);
 
     DbgPrint("CreateSharedEvents method completed!\r\n");
     return status;
@@ -2311,23 +2357,17 @@ void DeleteSharedEvents(PDEVICE_OBJECT device_object)
 {
     PDEVICE_EXTENSION device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
     DbgPrint("Driver-->DeviceObject->DeleteSharedEvents routine started - removing device shared events %u\r\n", device_extension->device_number);
-    
-    //KeClearEvent(device_extension->KeDriverRequestDataSetObj);
-    //KeClearEvent(device_extension->KeProxyIdleObj);
-    //KeClearEvent(device_extension->KeRequestCompleteObj);
-//    ObDereferenceObject(device_extension->KeDriverRequestDataSetObj);
     ObDereferenceObject(device_extension->pDriverRequestDataSetObj);
     ZwClose(device_extension->DriverRequestDataSet);
-  //  ObDereferenceObject(device_extension->KeProxyIdleObj);
     ObDereferenceObject(device_extension->pProxyIdleObj);
     ZwClose(device_extension->ProxyIdle);
-    //ObDereferenceObject(device_extension->KeRequestCompleteObj);
     ObDereferenceObject(device_extension->pRequestCompleteObj);
     ZwClose(device_extension->RequestComplete);
+    ObDereferenceObject(device_extension->pShutdownObj);
+    ZwClose(device_extension->Shutdown);
+    ObDereferenceObject(device_extension->pShutdownCompleteObj);
+    ZwClose(device_extension->ShutdownComplete);
     DbgPrint("Driver-->DeviceObject->DeleteSharedEvents routine completed!\r\n");
-
-    // TODO - delete all device's objects and handles
-
 }
 
 NTSTATUS CreateSharedMemory(PDEVICE_OBJECT device_object)
@@ -2444,10 +2484,6 @@ NTSTATUS openPipe(PDEVICE_OBJECT device_object)
         FILE_WRITE_THROUGH | FILE_NO_INTERMEDIATE_BUFFERING | FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_ALERT,// Create options
         NULL, // EA buffer
         0); // EA size
-    //if (status != STATUS_SUCCESS)
-    //{
-        //return status;
-    //}
 
     return status;
 }
@@ -2466,7 +2502,6 @@ BOOL isEventSignalled(PKEVENT KeEvent)
     timeout.QuadPart = 0;
     NTSTATUS WaitStatus;
 
-    // wait for proxy idle event to occur, meaning until the proxy app processes entire request and takes time and completes, then signals the event, we must wait.
     WaitStatus = KeWaitForSingleObject(KeEvent, UserRequest, UserMode, FALSE, &timeout);
     if (WaitStatus == STATUS_SUCCESS)
     {
@@ -2661,7 +2696,7 @@ void WriteBufferToPipe(LPBYTE buffer, HANDLE pipe, size_t size)
     while (size)
     {
         ZwWriteFile(pipe, NULL, NULL, NULL, &iostatus, buffer, stride, &offsettmp, NULL);
-        //ZwFlushBuffersFile(pipe, &iostatus);
+        ZwFlushBuffersFile(pipe, &iostatus);
         size -= stride;
         buffer += stride;
     }
@@ -2695,7 +2730,7 @@ void fastBufferToPipe(LPVOID buffer, HANDLE pipe, size_t pos, size_t nBytes)
     if (lremainingBytes > 0)
     {
         ZwWriteFile(pipe, NULL, NULL, NULL, &iostatus, src, lremainingBytes, &offsettmp, NULL);
-        //ZwFlushBuffersFile(pipe, &iostatus);
+        ZwFlushBuffersFile(pipe, &iostatus);
         pos += lremainingBytes;
         src += lremainingBytes;
     }

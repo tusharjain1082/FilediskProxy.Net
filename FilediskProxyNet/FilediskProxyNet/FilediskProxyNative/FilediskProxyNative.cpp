@@ -88,6 +88,7 @@ namespace FilediskProxyNative
         CloseHandle(ctx->ProxyIdle);
         CloseHandle(ctx->RequestComplete);
         CloseHandle(ctx->Shutdown);
+        CloseHandle(ctx->ShutdownComplete);
         FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: events released";
         CloseHandle(ctx->pipe);
         ctx->pipe = NULL;
@@ -551,6 +552,21 @@ namespace FilediskProxyNative
             return FALSE;
         }
 
+        // Event 5
+        memset(link, 0, 512);
+        sprintf_s(link, 512, "%s%u", USERMODEAPP_SHUTDOWNCOMPLETEEVENT_NAME, devicenumber);
+        wcharlink = commonMethods::ConvertCharToUnicode(link, 512);
+        ctx->ShutdownComplete = OpenEvent(EVENT_ALL_ACCESS, FALSE, wcharlink);
+
+        // delete it
+        delete[] wcharlink;
+
+        if (ctx->ShutdownComplete == NULL)
+        {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->OpenKernelDriverEvents: ShutdownComplete Event open failure";
+            return FALSE;
+        }
+
 
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->OpenKernelDriverEvents completed, all events opened successfully.";
         return TRUE;
@@ -680,6 +696,17 @@ namespace FilediskProxyNative
             ResetEvent(ctx->Shutdown);
     }
 
+    // set/reset Event
+    void FilediskProxyNative::SetEventShutdownComplete(int64_t ctxref, BOOL set)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        if (set)
+            SetEvent(ctx->ShutdownComplete);
+        else
+            ResetEvent(ctx->ShutdownComplete);
+    }
+
     DWORD FilediskProxyNative::WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
@@ -696,6 +723,33 @@ namespace FilediskProxyNative
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
         return WaitForSingleObject(ctx->RequestComplete, miliSeconds);
+    }
+
+    DWORD FilediskProxyNative::WaitEventShutdownComplete(int64_t ctxref, DWORD miliSeconds)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        return WaitForSingleObject(ctx->ShutdownComplete, miliSeconds);
+    }
+
+    int FilediskProxyNative::isEventSignalled(HANDLE hEvent)
+    {
+        DWORD WaitStatus = WaitForSingleObject(hEvent, 0);
+        if (WaitStatus == WAIT_OBJECT_0)
+        {
+            // success, the event was signalled
+            return TRUE;
+        }
+        else if (WaitStatus == WAIT_TIMEOUT)
+        {
+            // the event wasn't signelled, so return error
+            return FALSE;
+        }
+        else
+        {
+            // error or exception, continue
+            return -2;
+        }
+
     }
 
     void FilediskProxyNative::GetSHMHeader(int64_t ctxref, OUT int64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite)

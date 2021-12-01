@@ -232,7 +232,6 @@ namespace FilediskProxyNet
                     return;
                 }
 
-
                 // wait for driver event to occur
                 WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
                 if (WaitStatus == myContext.WAIT_OBJECT_0)
@@ -249,6 +248,8 @@ namespace FilediskProxyNet
                     // error or exception, continue
                     continue;
                 }
+
+                // at this point, the driver has requested data i/o, so connect to it through the pipe and process the request.
 
                 // Step 1: wait and connect to a client at pipe.
                 result0 = filehandle.fdpObject.ConnectPipe(filehandle.ctx);
@@ -299,11 +300,14 @@ namespace FilediskProxyNet
 
 
 
-                // Step 3: set the event
+                // Step 3: set/reset the events and reset and reloop as the request has been processed at this point.
+
                 // finally set the proxy idle event for the driver to unblock and process the reply and unset the driver data set event
                 filehandle.fdpObject.SetEventDriverRequestDataSet(filehandle.ctx, 0);
                 filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
 
+
+                // Step 4: completed.
             }
         }
 
@@ -342,6 +346,8 @@ namespace FilediskProxyNet
                     // error or exception, continue
                     continue;
                 }
+
+                // at this point, the driver has requested data i/o, so connect to it and process the request.
 
                 // unblock when the driver sets the event
                 // success, the driver set the event flag
@@ -473,8 +479,8 @@ namespace FilediskProxyNet
             
             // delete entire session context and all objects
             filehandle.fdpObject.deregister_file(filehandle.ctx);
-//            filehandle.fdpObject.SetEventShutdown(filehandle.ctx, 1);
-  //          filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+            filehandle.fdpObject.SetEventShutdown(filehandle.ctx, 1);
+            filehandle.fdpObject.WaitEventShutdownComplete(filehandle.ctx, myContext.INFINITE);
             filehandle.fdpObject.delete_ctx(filehandle.ctx);
             filehandle.fdpObject.delete_objects(filehandle.ctx);
 
