@@ -3,7 +3,7 @@ A very-very simple tutorial level and basic example in C++ and C# and .Net of a 
 
 Please note that the work is in progress. Nessessary code has been completed. There might be bugs, so you may inform them to me or fix them yourself.
 
-1. turn on the windows test signed drivers mode.
+1. turn on the windows test signed drivers mode. then reboot is required.
 2. run the script install.cmd
 3. run the script start.cmd
 4. then FilediskProxyNet.exe.
