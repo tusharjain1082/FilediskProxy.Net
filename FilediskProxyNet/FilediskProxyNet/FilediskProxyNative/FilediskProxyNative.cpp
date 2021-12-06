@@ -4,9 +4,11 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+
 #include "FilediskProxyNative.h"
 #include "log.h"
 #include "..\..\filedisk-proxy\FileDiskShared.h"
+
 using namespace std;
 
 namespace FilediskProxyNative
@@ -93,6 +95,11 @@ namespace FilediskProxyNative
         CloseHandle(ctx->pipe);
         ctx->pipe = NULL;
         FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: pipe deleted";
+        closesocket(ctx->ClientSocket);
+        closesocket(ctx->ListenSocket);
+        WSACleanup();
+        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: sockets deleted";
+
     }
     // delete the entire session context and all it's handles and configuration.
     BOOL FilediskProxyNative::delete_ctx(int64_t ctxref)
@@ -219,7 +226,7 @@ namespace FilediskProxyNative
 
 
     // initialize new session context and initialize everything including kernel driver handles and shared memory
-    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t& ctxOut)
+    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t& ctxOut)
     {
 
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started";
@@ -227,8 +234,12 @@ namespace FilediskProxyNative
         ctx->DriveLetter = DriveLetter;
         ctx->fileConfig = new OPEN_FILE_INFORMATION();
         ctx->fileConfig->FileSize.QuadPart = filesize;
-        ctx->usePipe = usePipe;
-        ctx->fileConfig->usePipe = usePipe;
+        ctx->usePipe = ctx->fileConfig->usePipe = usePipe;
+        ctx->useShm = ctx->fileConfig->useShm = useShm;
+        ctx->useSocket = ctx->fileConfig->useSocket = useSocket;
+        std::sprintf(ctx->fileConfig->port, "%u", port);
+        std::sprintf(ctx->port, "%u", port);
+        ctx->lport = ctx->fileConfig->lport = port;
 
         if (!FindInitializeAvailableDevice((int64_t)ctx))
         {
@@ -254,6 +265,13 @@ namespace FilediskProxyNative
         {
             // error in opening events, abort with error
             FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateIoPipe error. aborted.";
+            return FALSE;
+        }
+
+        if (!CreateSocketServer((int64_t)ctx))
+        {
+            // error in socket creation, abort with error
+            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateSocketServer error. aborted.";
             return FALSE;
         }
 
@@ -652,6 +670,81 @@ namespace FilediskProxyNative
 
     }
 
+    // create and initialize socket and port
+    BOOL FilediskProxyNative::CreateSocketServer(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer started";
+
+        WSADATA wsaData;
+        int iResult;
+
+        struct addrinfo* result = NULL;
+        struct addrinfo hints;
+
+        // Initialize Winsock
+        iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (iResult != 0) {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer->WSAStartup method failure.";
+            return FALSE;
+        }
+
+        ZeroMemory(&hints, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+//        hints.ai_flags = AI_PASSIVE;
+
+        // port 1 - request
+
+        // Resolve the server address and port
+        iResult = getaddrinfo(NULL, ctx->port, &hints, &result);
+        if (iResult != 0) {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer->getaddrinfo method failure.";
+            WSACleanup();
+            return FALSE;
+        }
+
+       
+        // Create a SOCKET for connecting to server
+        ctx->ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+        if (ctx->ListenSocket == INVALID_SOCKET) {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer->socket method failure.";
+            freeaddrinfo(result);
+            WSACleanup();
+            return FALSE;
+
+        }
+
+        // Setup the TCP listening socket
+        iResult = bind(ctx->ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+        if (iResult == SOCKET_ERROR) {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer->bind method failure.";
+            freeaddrinfo(result);
+            closesocket(ctx->ListenSocket);
+            WSACleanup();
+            return FALSE;
+        }
+
+        freeaddrinfo(result);
+
+        // now start listening on this socket
+        iResult = listen(ctx->ListenSocket, SOMAXCONN);
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer->Listen: listening at port: " << ctx->port;
+
+        // completed.
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateSocketServer completed successfully. socket port created and initialized.";
+        return TRUE;
+    }
+
+    // set/reset Event
+    void FilediskProxyNative::PulseEventDriverRequestDataSet(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        PulseEvent(ctx->DriverRequestDataSet);
+    }
+
     // set/reset Event
     void FilediskProxyNative::SetEventDriverRequestDataSet(int64_t ctxref, BOOL set)
     {
@@ -661,6 +754,13 @@ namespace FilediskProxyNative
             SetEvent(ctx->DriverRequestDataSet);
         else
             ResetEvent(ctx->DriverRequestDataSet);
+    }
+
+    // set/reset Event
+    void FilediskProxyNative::PulseEventProxyIdle(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        PulseEvent(ctx->ProxyIdle);
     }
 
     // set/reset Event
@@ -675,6 +775,13 @@ namespace FilediskProxyNative
     }
 
     // set/reset Event
+    void FilediskProxyNative::PulseEventRequestComplete(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        PulseEvent(ctx->RequestComplete);
+    }
+
+    // set/reset Event
     void FilediskProxyNative::SetEventRequestComplete(int64_t ctxref, BOOL set)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
@@ -686,6 +793,13 @@ namespace FilediskProxyNative
     }
 
     // set/reset Event
+    void FilediskProxyNative::PulseEventShutdown(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        PulseEvent(ctx->Shutdown);
+    }
+
+    // set/reset Event
     void FilediskProxyNative::SetEventShutdown(int64_t ctxref, BOOL set)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
@@ -694,6 +808,13 @@ namespace FilediskProxyNative
             SetEvent(ctx->Shutdown);
         else
             ResetEvent(ctx->Shutdown);
+    }
+
+    // set/reset Event
+    void FilediskProxyNative::PulseEventShutdownComplete(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        PulseEvent(ctx->ShutdownComplete);
     }
 
     // set/reset Event
@@ -879,6 +1000,83 @@ namespace FilediskProxyNative
 
         // completed. disconnect and go to the next round which is i/o
         return DisconnectNamedPipe(ctx->pipe);
+    }
+
+    BOOL FilediskProxyNative::Step1SocketGetRequest(int64_t ctxref, OUT uint64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite)
+    {
+        BOOL result;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        // reset and clean the context configuration
+        memset(&ctx->__requestBuffer, 0, REQUEST_BUFFER_SIZE);
+        ctx->requestSet = false;
+
+        // Step 1: receive request
+        //original working: int iResult = recv(ctx->ClientSocket, (char*)&ctx->__requestBuffer, REQUEST_BUFFER_SIZE, MSG_WAITALL);
+        ReadSocketComplete(ctxref, &ctx->__requestBuffer, REQUEST_BUFFER_SIZE);
+        ctx->request = (PCONTEXT_REQUEST)&ctx->__requestBuffer;
+        ctx->requestSet = true;
+
+        // set output destinations with received request
+        byteOffset = ctx->request->ByteOffset;
+        length = ctx->request->Length;
+        function = ctx->request->MajorFunction;
+        totalBytesReadWrite = ctx->request->totalBytesReadWrite;
+        FILE_LOG(linfo) << "Step1SocketGetRequest completed. request offset: " << byteOffset << " and length: " << length;
+        return TRUE;
+    }
+
+    void FilediskProxyNative::ReadSocketComplete(int64_t ctxref, void* outputBuffer, size_t length)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        uint64_t totalVectors = 1;
+        size_t stride = totalVectors * SOCKET_BUFFER_SIZE;
+        char* dstptr = (char*)outputBuffer;
+
+        while (length)
+        {
+            int sockResult = recv(ctx->ClientSocket, dstptr, stride, 0);
+            if (sockResult <= 0)
+            {
+                continue;
+            }
+            dstptr += sockResult;
+            length -= sockResult;
+            if (length < SOCKET_BUFFER_SIZE)
+                stride = length;
+        }        
+    }
+
+    void FilediskProxyNative::ReadSocket(int64_t ctxref, void* outputBuffer, size_t length)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        //int sockResult = recv(ctx->ClientSocket, (char*)outputBuffer, length, MSG_WAITALL);
+        ReadSocketComplete(ctxref, outputBuffer, length);
+        FILE_LOG(linfo) << "ReadSocket completed";
+    }
+
+    void FilediskProxyNative::WriteSocket(int64_t ctxref, void* inputBuffer, size_t length)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        int sockResult = send(ctx->ClientSocket, (const char*)inputBuffer, length, 0);
+        FILE_LOG(linfo) << "WriteSocket completed";
+    }
+
+    // Accept a client socket
+    void FilediskProxyNative::SocketAcceptClient(int64_t ctxref)
+    {
+        // note that this is a blocking call
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        ctx->ClientSocket = accept(ctx->ListenSocket, NULL, NULL);
+        FILE_LOG(linfo) << "SocketAcceptClient completed";
+    }
+
+    void FilediskProxyNative::CloseClientSocket(int64_t ctxref)
+    {
+        // note that this is a blocking call
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        closesocket(ctx->ClientSocket);
     }
 
 }

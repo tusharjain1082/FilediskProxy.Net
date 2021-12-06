@@ -1,5 +1,13 @@
 #pragma once
 
+/*
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#define _WINSOCK2API_
+#define _WINSOCKAPI_   /* Prevent inclusion of winsock.h in windows.h 
+
+#define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
 #include <tchar.h>
@@ -23,9 +31,10 @@
 #include <string.h> // CBC mode, for memset
 #include <cstdlib>
 #include <cstdint>
-#include <assert.h>     /* assert */
+#include <assert.h>     /* assert 
 #include <stdint.h>
 #include <Shlobj.h>
+*/
 
 #include "../FilediskProxyNative/FilediskProxyNative.h"
 
@@ -50,13 +59,18 @@ namespace FilediskProxyManaged {
 
 
 
-		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t% ctxOut);
+		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t% ctxOut);
 		BOOL delete_ctx(int64_t ctxref);
 		void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
 		void SetEventProxyIdle(int64_t ctxref, BOOL set);
 		void SetEventRequestComplete(int64_t ctxref, BOOL set);
 		void SetEventShutdown(int64_t ctxref, BOOL set);
 		void SetEventShutdownComplete(int64_t ctxref, BOOL set);
+		void PulseEventDriverRequestDataSet(int64_t ctxref);
+		void PulseEventProxyIdle(int64_t ctxref);
+		void PulseEventRequestComplete(int64_t ctxref);
+		void PulseEventShutdown(int64_t ctxref);
+		void PulseEventShutdownComplete(int64_t ctxref);
 		void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
 		uint32_t WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
@@ -74,6 +88,13 @@ namespace FilediskProxyManaged {
 		int DisconnectPipe(int64_t ctxref);
 		int deregister_file(int64_t ctxref);
 		void delete_objects(int64_t ctxref);
+
+		// sockets
+		BOOL Step1SocketGetRequest(int64_t ctxref, OUT uint64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite);
+		void ReadSocket(int64_t ctxref, int64_t outputBuffer, size_t length);
+		void WriteSocket(int64_t ctxref, int64_t inputBuffer, size_t length);
+		void SocketAcceptClient(int64_t ctxref);
+		void CloseClientSocket(int64_t ctxref);
 
 		// Dispose method will make IDisposable
 		~FilediskProxyManaged();

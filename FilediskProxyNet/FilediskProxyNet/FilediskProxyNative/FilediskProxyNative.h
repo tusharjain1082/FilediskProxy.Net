@@ -1,5 +1,15 @@
 #pragma once
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
+#pragma comment(lib, "Ws2_32.lib")
+
+#define _WINSOCK2API_
+#define _WINSOCKAPI_   /* Prevent inclusion of winsock.h in windows.h */
+
+#define WIN32_LEAN_AND_MEAN
+
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
@@ -277,13 +287,22 @@ namespace FilediskProxyNative {
         HANDLE shmHandle;
         LPVOID shmMappedBuffer;
 
-        BOOL usePipe;
-        HANDLE pipe;
+        BOOL            usePipe;
+        HANDLE          pipe;
+        BOOL            useShm;
+        BOOL            useSocket;
+        char            port[32];
+        ULONG           lport;
+        SOCKET ListenSocket = INVALID_SOCKET;
+        SOCKET ClientSocket = INVALID_SOCKET;
 
-        BYTE __requestBuffer[REQUEST_BUFFER_SIZE];
+        BYTE __requestBuffer[REQUEST_BUFFER_SIZE + 1];
         PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)&__requestBuffer;
         BOOL requestSet = FALSE;
 
+        const int prefix_size = 2;
+        char g_holding_buffer[1000];
+        int g_held_bytes = 0;
     };
 
     class FilediskProxyNative
@@ -306,10 +325,11 @@ namespace FilediskProxyNative {
         static BOOL OpenKernelDriverEvents(int64_t ctxref);
         static BOOL OpenSharedMemory(int64_t ctxref);
         static BOOL CreateIoPipe(int64_t ctxref);
+        static BOOL CreateSocketServer(int64_t ctxref);
         static BOOL FindInitializeAvailableDevice(int64_t ctxref);
         static int FindAvailableDevice();
         static int deregister_file(int64_t ctxref);
-        BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t& ctxOut);
+        static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t& ctxOut);
         static BOOL delete_ctx(int64_t ctxref);
         static void delete_objects(int64_t ctxref);
 
@@ -318,6 +338,11 @@ namespace FilediskProxyNative {
         static void SetEventRequestComplete(int64_t ctxref, BOOL set);
         static void SetEventShutdown(int64_t ctxref, BOOL set);
         static void SetEventShutdownComplete(int64_t ctxref, BOOL set);
+        static void PulseEventDriverRequestDataSet(int64_t ctxref);
+        static void PulseEventProxyIdle(int64_t ctxref);
+        static void PulseEventRequestComplete(int64_t ctxref);
+        static void PulseEventShutdown(int64_t ctxref);
+        static void PulseEventShutdownComplete(int64_t ctxref);
         static void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
         static DWORD WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
@@ -333,6 +358,15 @@ namespace FilediskProxyNative {
         static void WritePipe(int64_t ctxref, void* inputBuffer, size_t length);
         static int ConnectPipe(int64_t ctxref);
         static int DisconnectPipe(int64_t ctxref);
+
+        // sockets
+        static BOOL Step1SocketGetRequest(int64_t ctxref, OUT uint64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite);
+        static void ReadSocket(int64_t ctxref, void* outputBuffer, size_t length);
+        static void ReadSocketComplete(int64_t ctxref, void* outputBuffer, size_t length);
+        static int recv_packet(int64_t ctxref, char* p_out_buffer, int buffer_size);
+        static void WriteSocket(int64_t ctxref, void* inputBuffer, size_t length);
+        static void SocketAcceptClient(int64_t ctxref);
+        static void CloseClientSocket(int64_t ctxref);
 
 #pragma endregion
 

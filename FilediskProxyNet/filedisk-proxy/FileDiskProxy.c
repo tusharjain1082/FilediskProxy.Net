@@ -27,6 +27,10 @@
 #include <wchar.h>
 #include <math.h>
 #include ".\SHM\helper.h"
+#include <wsk.h>
+
+#include ".\ksocket\ksocket.h"
+#include ".\ksocket\berkeley.h"
 
 NTSYSAPI
 NTSTATUS
@@ -79,8 +83,12 @@ typedef struct _DEVICE_EXTENSION {
     BOOLEAN                     isFoundationDevice;
     HANDLE                      LogFileDevice;
     BOOL                        usePipe;
-    PCONTEXT_REQUEST            request;
     HANDLE                      pipe;
+    BOOL                        useShm;
+    BOOL                        useSocket;
+    int                         sock;
+    ULONG                       lport;
+    PCONTEXT_REQUEST            request;
 
     // driver's shared memory
     PVOID                   	g_pSharedSection;
@@ -232,6 +240,21 @@ DriverEntry(
     OBJECT_ATTRIBUTES           object_attributes;
     ULONG                       n;
     USHORT                      n_created_devices;
+
+    NTSTATUS Status;
+
+    //*****************
+    //
+    // Initialize KSOCKET.
+    // todo tushar
+
+    Status = KsInitialize();
+
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+    //*****************
 
     parameter_path.Length = 0;
 
@@ -479,7 +502,7 @@ FileDiskCreateDevice(
     CreateSharedEventsKe(device_object);
 
     // TODO tushar: allocate context request
-    device_extension->request = (PCONTEXT_REQUEST)ExAllocatePoolZero(PagedPool, REQUEST_BUFFER_SIZE, FILE_DISK_POOL_TAG);
+    device_extension->request = (PCONTEXT_REQUEST)ExAllocatePoolZero(PagedPool, REQUEST_BUFFER_SIZE + 1, FILE_DISK_POOL_TAG);
 
     // TODO tushar: now initialize device number based log file
     device_extension->LogFileDevice = initLog(TEXT(LOG_FILE_NAME_PATH), Number);
@@ -1473,6 +1496,328 @@ VOID FileDiskClearQueue(IN PVOID Context)
 
 }
 
+
+BOOL connectToSocket(IN PVOID Context)
+{
+
+    PDEVICE_OBJECT      device_object;
+    PDEVICE_EXTENSION   device_extension;
+    device_object = (PDEVICE_OBJECT)Context;
+    device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+
+    int result;
+    LARGE_INTEGER timeout = { 100 };
+    LARGE_INTEGER timeout2 = { 100 };// 00 };
+    struct addrinfo hints = { 0 };
+    RtlZeroMemory(&hints, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;// AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    struct addrinfo* res, * ptr = NULL;
+
+    // port 1 - request
+
+    // Resolve the server address and port
+    //char port[16];
+//    sprintf_s(&port, sizeof(port), "%d", device_extension->lport);
+    //Log(device_extension->LogFileDevice, &port);
+
+    PBYTE port = ExAllocatePoolWithTag(PagedPool, 16, FILE_DISK_POOL_TAG);
+    sprintf_s(port, sizeof(port), "%d", device_extension->lport);
+
+    //// Connect to server.
+    while (TRUE)
+    {
+        result = getaddrinfo(NULL, port, &hints, &res);
+        if (result != 0) {
+            //DbgPrint("getaddrinfo failed with error: %d\n", result);
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+            continue;
+            //return FALSE;
+        }
+
+        ptr = res;
+
+        // Create a SOCKET for connecting to server
+        device_extension->sock = socket_connection(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+        result = connect(device_extension->sock, ptr->ai_addr, (int)ptr->ai_addrlen);
+        if (result != 0)
+        {
+            freeaddrinfo(res);
+            closesocket(device_extension->sock);
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+            continue;
+        }
+        else
+        {
+            freeaddrinfo(res);
+            break;
+        }
+    }
+    ExFreePoolWithTag(port, FILE_DISK_POOL_TAG);
+
+//    DbgPrint("connected...\r\n");
+    return TRUE;
+}
+
+void ReadSocketComplete(int sock, void* outputBuffer, size_t length)
+{
+    UINT64 totalVectors = 1;
+    size_t stride = totalVectors * SOCKET_BUFFER_SIZE;
+    PBYTE dstptr = outputBuffer;
+
+    while (length)
+    {
+        int sockResult = recv(sock, dstptr, stride, 0);
+        if (sockResult <= 0)
+        {
+            continue;
+        }
+        dstptr += sockResult;
+        length -= sockResult;
+        if (length < SOCKET_BUFFER_SIZE)
+            stride = length;
+    }
+}
+
+int Socket2Steps(IN PVOID Context, PIRP irp)
+{
+    PDEVICE_OBJECT      device_object;
+    PDEVICE_EXTENSION   device_extension;
+    PIO_STACK_LOCATION  io_stack;
+    NTSTATUS status;
+    device_object = (PDEVICE_OBJECT)Context;
+    NTSTATUS WaitStatus;
+    PVOID              system_buffer;
+
+    device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+
+    io_stack = IoGetCurrentIrpStackLocation(irp);
+
+//    Log(device_extension->LogFileDevice, "Socket2Steps started...");
+
+    // phase 1: prepare configuration
+    RtlZeroMemory(device_extension->request, REQUEST_BUFFER_SIZE);
+
+    // prepare and set the request in shared memory
+    if (io_stack->MajorFunction == IRP_MJ_READ)
+    {
+        system_buffer = MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority);// HighPagePriority);
+        device_extension->request->MajorFunction = IRP_MJ_READ;
+        device_extension->request->ByteOffset = io_stack->Parameters.Read.ByteOffset.QuadPart;
+        device_extension->request->Length = io_stack->Parameters.Read.Length;
+    }
+    else
+    {
+        system_buffer = (PUCHAR)MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority | MdlMappingNoWrite);// NormalPagePriority);
+        device_extension->request->MajorFunction = IRP_MJ_WRITE;
+        device_extension->request->ByteOffset = io_stack->Parameters.Write.ByteOffset.QuadPart;
+        device_extension->request->Length = io_stack->Parameters.Write.Length;
+    }
+
+    // set signature
+    device_extension->request->signature = DRIVER_SIGNATURE;
+
+    LARGE_INTEGER timeout = { 0,0 };
+    timeout.QuadPart = 100;
+    LARGE_INTEGER timeout2 = { 100 };// 0000 };
+
+
+    // phase 1: open pipe in spin lock loop or directly if no problem
+
+    //Log(device_extension->LogFileDevice, "Socket2Steps->KeSetEvent::KeDriverRequestDataSetObj starting...");
+
+    // set the data event for the proxy app server to unblock and process the request
+    KeSetEvent(device_extension->KeDriverRequestDataSetObj, 1, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+
+    // connect
+    //Log(device_extension->LogFileDevice, "Socket2Steps->connectToSocket starting.\r\n");
+    connectToSocket(Context);
+    //Log(device_extension->LogFileDevice, "Socket2Steps->connectToSocket completed.\r\n");
+
+    // connected
+
+    // phase 2: directly write request buffer to socket
+    int result = send(device_extension->sock, device_extension->request, REQUEST_BUFFER_SIZE, 0);
+    if (result == -1)
+    {
+//        Log(device_extension->LogFileDevice, "Socket2Steps: send request failure.\r\n");
+  //      DbgPrint("send request failure.\r\n");
+    }
+//    Log(device_extension->LogFileDevice, "Socket2Steps->send completed. request sent.\r\n");
+
+    // proper synchronisation between all processing in both client and server for each and every procedure.
+    WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, NULL);
+    KeResetEvent(device_extension->KeProxyIdleObj);
+    KeSetEvent(device_extension->KeRequestCompleteObj, 1, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+
+    // phase 3: direct i/o
+    int sockResult;
+
+    
+    PBYTE buffer = ExAllocatePoolWithTag(PagedPool, MAJOR_BUFFER_SIZE, FILE_DISK_POOL_TAG);
+    if (io_stack->MajorFunction == IRP_MJ_READ)
+    {
+        // use spin lock loop to successfully recieve data. it might be that the proxy app server is busy, so it takes time for the data to arrive.
+        ReadSocketComplete(device_extension->sock, buffer, io_stack->Parameters.Read.Length);
+        RtlCopyMemory(system_buffer, buffer, io_stack->Parameters.Read.Length);
+//        Log(device_extension->LogFileDevice, "Socket2Steps->recv io completed. data received.\r\n");
+    }
+    else
+    {
+        // use spin lock loop to successfully send data. it might be that the proxy app server is busy, so it takes time for the data to be received by the proxy app server.
+        RtlCopyMemory(buffer, system_buffer, io_stack->Parameters.Write.Length);
+        sockResult = send(device_extension->sock, buffer, io_stack->Parameters.Write.Length, 0);
+//        Log(device_extension->LogFileDevice, "Socket2Steps->send io completed. data sent.\r\n");
+    }
+    ExFreePoolWithTag(buffer, FILE_DISK_POOL_TAG);
+    
+
+    // proper synchronisation between all processing in both client and server for each and every procedure.
+    WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, NULL);
+    KeResetEvent(device_extension->KeProxyIdleObj);
+    KeSetEvent(device_extension->KeRequestCompleteObj, 1, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+
+    /*
+    PBYTE buffer = (PBYTE)system_buffer;
+    if (io_stack->MajorFunction == IRP_MJ_READ)
+    {
+        //sockResult = recv(device_extension->sock, system_buffer, io_stack->Parameters.Read.Length, 0);
+        ReadSocketComplete(device_extension->sock, buffer, io_stack->Parameters.Read.Length);
+//        Log(device_extension->LogFileDevice, "Socket2Steps->recv io completed. data received.\r\n");
+    }
+    else
+    {
+        sockResult = send(device_extension->sock, buffer, io_stack->Parameters.Write.Length, 0);
+  //      Log(device_extension->LogFileDevice, "Socket2Steps->send io completed. data sent.\r\n");
+    }
+    */
+
+
+    // phase 4: wait for Proxy Application Server to process entire request and complete and then set the ProxyIdle Event.
+
+
+    // we cannot use indefinite wait, so we use spin lock loop which is breakable by user's command
+    while (TRUE)
+    {
+        // wait for proxy idle event to occur, meaning until the proxy app processes entire request and takes time and completes, then signals the event, we must wait.
+        WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, &timeout);// &timeout);
+        if (WaitStatus == STATUS_SUCCESS)
+        {
+            //Log(device_extension->LogFileDevice, "Socket2Steps->KeWaitForSingleObject completed. proxy app set the event.\r\n");
+
+            // success, the proxy app set the event flag
+            KeResetEvent(device_extension->KeProxyIdleObj);
+
+            // complete the entire sessin context
+            KeSetEvent(device_extension->KeRequestCompleteObj, 1, TRUE);
+
+            // delay for proper synchronisation of shared memory buffer and everything else in user mode and kernel mode
+            KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+            break;
+        }
+        else if (WaitStatus == STATUS_TIMEOUT)
+        {
+            continue;
+        }
+        else
+        {
+            continue;
+        }
+    }
+    
+
+    // finally close the client socket
+    closesocket(device_extension->sock);
+
+    // success completed
+    //Log(device_extension->LogFileDevice, "Socket2Steps completed.\r\n");
+
+    return 1;
+}
+
+VOID FileDiskSocketReadWrite(IN PVOID Context, PIRP irp)
+{
+    PDEVICE_OBJECT      device_object;
+    PDEVICE_EXTENSION   device_extension;
+    PLIST_ENTRY         request;
+    PIO_STACK_LOCATION  io_stack;
+    PUCHAR              system_buffer;
+    PUCHAR              buffer;
+
+    device_object = (PDEVICE_OBJECT)Context;
+
+    device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+
+    io_stack = IoGetCurrentIrpStackLocation(irp);
+
+    // TODO read and write pipe
+
+    int requestStatus;
+
+    switch (io_stack->MajorFunction)
+    {
+    case IRP_MJ_READ:
+
+        if ((io_stack->Parameters.Read.ByteOffset.QuadPart +
+            io_stack->Parameters.Read.Length) >
+            device_extension->file_size.QuadPart)
+        {
+            irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
+            irp->IoStatus.Information = 0;
+            break;
+        }
+
+        //Log(device_extension->LogFileDevice, "FileDiskSocketReadWrite->Socket2Steps starting.\r\n");
+
+        // request and pipe i/o
+        requestStatus = Socket2Steps(Context, irp);
+        if (requestStatus == -1)
+            goto Completed;
+
+
+        // finally update current device's current Irp status
+        irp->IoStatus.Status = STATUS_SUCCESS;
+        irp->IoStatus.Information = io_stack->Parameters.Read.Length;
+        break;
+    case IRP_MJ_WRITE:
+
+        if ((io_stack->Parameters.Write.ByteOffset.QuadPart +
+            io_stack->Parameters.Write.Length) >
+            device_extension->file_size.QuadPart)
+        {
+            irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
+            irp->IoStatus.Information = 0;
+            break;
+        }
+
+        //Log(device_extension->LogFileDevice, "FileDiskSocketReadWrite->Socket2Steps starting.\r\n");
+
+        // request and pipe i/o
+        requestStatus = Socket2Steps(Context, irp);
+        if (requestStatus == -1)
+            goto Completed;
+
+        // finally update current device's current Irp status
+        irp->IoStatus.Status = STATUS_SUCCESS;
+        irp->IoStatus.Information = io_stack->Parameters.Write.Length;
+        break;
+    default:
+        irp->IoStatus.Status = STATUS_DRIVER_INTERNAL_ERROR;
+    }
+Completed:
+    IoCompleteRequest(
+        irp,
+        (CCHAR)(NT_SUCCESS(irp->IoStatus.Status) ?
+            IO_DISK_INCREMENT : IO_NO_INCREMENT)
+    );
+}
+
 int Pipe2Steps(IN PVOID Context, PIRP irp)
 {
     PDEVICE_OBJECT      device_object;
@@ -1708,12 +2053,13 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
 //            timeout.QuadPart = -(60ll * 10 * 1000 * 1000);
     timeout.QuadPart = 100; // 1000000000; // = 1 second delay // 10000000000; // = 10 seconds // 50 ms: 50000000;
     LARGE_INTEGER timeout2 = { 0,0 };
-    timeout2.QuadPart = 100; // 100000; // 100000000;// 50000000;
+    timeout2.QuadPart = 1000000; // = 1 milisecond // 100000; // 100000000;// 50000000;
     NTSTATUS WaitStatus;
     switch (io_stack->MajorFunction)
     {
     case IRP_MJ_READ:
 
+        /*
         if ((io_stack->Parameters.Read.ByteOffset.QuadPart +
             io_stack->Parameters.Read.Length) >
             device_extension->file_size.QuadPart)
@@ -1722,6 +2068,7 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
             irp->IoStatus.Information = 0;
             break;
         }
+        */
 
         // prepare and set the request in shared memory
         RtlZeroMemory(shmRequest, SHM_HEADER_SIZE);
@@ -1770,6 +2117,7 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
         break;
     case IRP_MJ_WRITE:
 
+        /*
         if ((io_stack->Parameters.Write.ByteOffset.QuadPart +
             io_stack->Parameters.Write.Length) >
             device_extension->file_size.QuadPart)
@@ -1778,6 +2126,7 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
             irp->IoStatus.Information = 0;
             break;
         }
+        */
 
         // prepare and set the request in shared memory
         RtlZeroMemory(shmRequest, SHM_HEADER_SIZE);
@@ -1785,6 +2134,10 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
         shmRequest->ByteOffset = io_stack->Parameters.Write.ByteOffset.QuadPart;
         shmRequest->Length = io_stack->Parameters.Write.Length;
         KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+
+        //char txt[256];
+        //sprintf_s(&txt, 256, "%s: %u", "shmRequest->ByteOffset", shmRequest->ByteOffset);
+        //Log(device_extension->LogFileDevice, &txt);
 
         system_buffer = (PUCHAR)MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority | MdlMappingNoWrite);// NormalPagePriority);
         RtlCopyBytes(shmBuffer + SHM_HEADER_SIZE, system_buffer, io_stack->Parameters.Write.Length);
@@ -1836,6 +2189,7 @@ Completed:
     );
 
 }
+
 
 VOID
 FileDiskThread(
@@ -1966,10 +2320,15 @@ FileDiskThread(
             {
                 FileDiskPipeReadWrite(Context, irp);
             }
-            else
+            else if (device_extension->useShm)
             {
                 FileDiskSHMReadWrite(Context, irp);
             }
+            else if (device_extension->useSocket)
+            {
+                FileDiskSocketReadWrite(Context, irp);
+            }
+
         }
     }
 }
@@ -2003,6 +2362,10 @@ FileDiskOpenFile(
     device_extension->file_size.u.HighPart = open_file_information->FileSize.u.HighPart;
     device_extension->file_size.u.LowPart = open_file_information->FileSize.u.LowPart;
     device_extension->usePipe = open_file_information->usePipe;
+    device_extension->useShm = open_file_information->useShm;
+    device_extension->useSocket = open_file_information->useSocket;
+    //RtlCopyMemory(device_extension->port, open_file_information->port, sizeof(open_file_information->port));
+    device_extension->lport = open_file_information->lport;
 
     device_extension->file_name.Length = open_file_information->FileNameLength;
     device_extension->file_name.MaximumLength = open_file_information->FileNameLength;
@@ -2627,6 +2990,7 @@ VOID Log(HANDLE handle, char* text) {
         if (NT_SUCCESS(ntstatus)) {
             ntstatus = ZwWriteFile(handle, NULL, NULL, NULL, &ioStatusBlock,
                 buffer, (ULONG)cb, NULL, NULL);
+            ZwFlushBuffersFile(handle, &ioStatusBlock);
         }
     }
 }

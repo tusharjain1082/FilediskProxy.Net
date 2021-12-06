@@ -1,13 +1,14 @@
 #pragma once
 
-
+/*
 #include <tchar.h>
 #include <stdio.h>
 #include <strsafe.h>
 #include <stdlib.h>
 #include <tchar.h>
 #include <string.h> // CBC mode, for memset
-#include <assert.h>     /* assert */
+#include <assert.h>     /* assert 
+*/
 
 #ifndef __T
 #ifdef _NTDDK_
@@ -41,6 +42,7 @@ static const char BASE_DEVICE_LINK_NAME_APP[] = "\\\\.\\FileDisk0";
 #define BACKEND_VHD_FILE_SIZE 1048576000 // 1 GB
 
 #define DEVICE_OBJECT_SHM_SIZE_BYTES 52428800 //10485760
+//#define SOCKET_BUFFER_SIZE 104857600
 
 static const ULONG DRIVER_SIGNATURE = 5555;
 static const ULONG USERMODEAPP_SIGNATURE = 8888;
@@ -62,7 +64,9 @@ static const char USERMODEAPP_SHM_SEMAPHORE_NAME[] = "Global\\FileDiskSHMSync";
 #define PIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskPipe"
 static const char PIPE_NAME_USERMODEAPP[] = "\\\\.\\pipe\\FileDiskPipe";
 static const int PIPE_BUFFER_SIZE = 1048576;
-#define REQUEST_BUFFER_SIZE 1025
+#define REQUEST_BUFFER_SIZE 1024
+static const int SOCKET_BUFFER_SIZE = 10485760;
+static const int MAJOR_BUFFER_SIZE = 104857600;
 
 //static const int PIPE_BUFFER_SIZE_TRUE = 4096;
 
@@ -87,8 +91,10 @@ typedef struct _OPEN_FILE_INFORMATION {
     BOOLEAN         DriverReply;
     ULONG           DeviceNumber;
     BOOL            usePipe;
-    //HANDLE          shmSemaphoreSync;
-    //ULONG           requestCtr;
+    BOOL            useShm;
+    BOOL            useSocket;
+    char            port[16];
+    ULONG           lport;
 } OPEN_FILE_INFORMATION, * POPEN_FILE_INFORMATION;
 
 typedef struct _BASE_DEVICE_QUERY {
@@ -100,10 +106,7 @@ typedef struct _CONTEXT_REQUEST {
     UINT64 ByteOffset;
     ULONG Length;
     DWORD totalBytesReadWrite;
- //   ULONG reply;
     ULONG signature;
- //   ULONG requestCtr;
-    //char signature[32];
 }CONTEXT_REQUEST, * PCONTEXT_REQUEST;
 static const char SIGNATURE_PROXYREPLY[] = "PROXY-REPLY";
 static const char SIGNATURE_HELLO[] = "HELLO";
@@ -122,3 +125,4 @@ static const char SIGNATURE_HELLO[] = "HELLO";
 #define IOCTL_DEREGISTER_FILE_FROM_DEVICE  CTL_CODE(FILE_DEVICE_DISK, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS) 
 
 #define LOG_FILE_NAME_PATH L"\\DosDevices\\C:\\FileDiskProxyDevice"
+

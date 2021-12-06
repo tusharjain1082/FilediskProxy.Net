@@ -13,11 +13,11 @@ namespace FilediskProxyManaged {
         this->_nativePtr = new FilediskProxyNative::FilediskProxyNative();
     }
 
-    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, OUT int64_t% ctxOut)
+    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t% ctxOut)
     {
         // Initialize Software AES Framework for the CBC mode
         int64_t ctx = 0;
-        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, ctx);
+        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, useShm, useSocket, port, ctx);
         ctxOut = ctx;
         return result;
     }
@@ -54,6 +54,30 @@ namespace FilediskProxyManaged {
     void FilediskProxyManaged::SetEventShutdownComplete(int64_t ctxref, BOOL set)
     {
         this->_nativePtr->SetEventShutdownComplete(ctxref, set);
+    }
+
+    void FilediskProxyManaged::PulseEventDriverRequestDataSet(int64_t ctxref)
+    {
+        this->_nativePtr->PulseEventDriverRequestDataSet(ctxref);
+
+    }
+    void FilediskProxyManaged::PulseEventProxyIdle(int64_t ctxref)
+    {
+        this->_nativePtr->PulseEventProxyIdle(ctxref);
+    }
+
+    void FilediskProxyManaged::PulseEventRequestComplete(int64_t ctxref)
+    {
+        this->_nativePtr->PulseEventRequestComplete(ctxref);
+    }
+
+    void FilediskProxyManaged::PulseEventShutdown(int64_t ctxref)
+    {
+        this->_nativePtr->PulseEventShutdown(ctxref);
+    }
+    void FilediskProxyManaged::PulseEventShutdownComplete(int64_t ctxref)
+    {
+        this->_nativePtr->PulseEventShutdownComplete(ctxref);
     }
 
     // notifies the windows about drive add or remove
@@ -155,6 +179,41 @@ namespace FilediskProxyManaged {
     void FilediskProxyManaged::SetSHMBuffer(int64_t ctxref, int64_t byteOffset, DWORD length, int64_t inputBuffer)
     {
         this->_nativePtr->SetSHMBuffer(ctxref, byteOffset, length, (void*)inputBuffer);
+    }
+
+    // sockets
+    BOOL FilediskProxyManaged::Step1SocketGetRequest(int64_t ctxref, OUT uint64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite)
+    {
+        uint64_t byteOffsettmp = 0;
+        DWORD lengthtmp = 0;
+        UCHAR functiontmp = 0;
+        DWORD totalbytesreadwritetmp = 0;
+        BOOL result = this->_nativePtr->Step1SocketGetRequest(ctxref, byteOffsettmp, lengthtmp, functiontmp, totalbytesreadwritetmp);
+        byteOffset = byteOffsettmp;
+        length = lengthtmp;
+        function = functiontmp;
+        totalBytesReadWrite = totalbytesreadwritetmp;
+        return result;
+    }
+
+    void FilediskProxyManaged::ReadSocket(int64_t ctxref, int64_t outputBuffer, size_t length)
+    {
+        this->_nativePtr->ReadSocket(ctxref, (void*)outputBuffer, length);
+    }
+
+    void FilediskProxyManaged::WriteSocket(int64_t ctxref, int64_t inputBuffer, size_t length)
+    {
+        this->_nativePtr->WriteSocket(ctxref, (void*)inputBuffer, length);
+    }
+
+    void FilediskProxyManaged::SocketAcceptClient(int64_t ctxref)
+    {
+        this->_nativePtr->SocketAcceptClient(ctxref);
+    }
+
+    void FilediskProxyManaged::CloseClientSocket(int64_t ctxref)
+    {
+        this->_nativePtr->CloseClientSocket(ctxref);
     }
 
 	FilediskProxyManaged::~FilediskProxyManaged() { delete _nativePtr; }

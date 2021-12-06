@@ -37,8 +37,10 @@ namespace FilediskProxyNet
         // native io buffers
         public IntPtr __buffer0;
         public IntPtr __buffer1;
-        public const int ShmSize = 52428800; // 50 mb
+        public const int ShmSize = 104857600; //52428800; // 50 mb
 
+        // sockets
+        public const uint DEFAULT_PORT = 27015;
         public String filename = "";
         public FileStream fs = null;
         public char[] driveletter = new char[4];
@@ -58,6 +60,9 @@ namespace FilediskProxyNet
         public Thread myThread = null;
         public EventWaitHandle myThreadWaitHandle = new EventWaitHandle(false, EventResetMode.ManualReset);
         public int usePipe = 0; // when set, we use a pipe at both sides.
+        public int useShm = 0; // when set, we use shared memory at both sides.
+        public int useSocket = 0; // when set, we use sockets at both sides.
+        public uint port = 0;
 
         public myContext()
         {

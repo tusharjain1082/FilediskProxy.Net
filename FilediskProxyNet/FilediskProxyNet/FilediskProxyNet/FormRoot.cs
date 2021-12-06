@@ -40,7 +40,7 @@ namespace FilediskProxyNet
 
             cmbDriveLetter.SelectedIndex = cmbDriveLetter.FindString(String.Format("{0}", "Z"));
 
-
+            txtPort.Text = myContext.DEFAULT_PORT.ToString();
         }
 
 
@@ -157,6 +157,28 @@ namespace FilediskProxyNet
         public void CreateOrOpenFile(bool newFile = true)
         {
 
+            Int64 ctxref = 0;
+            int usePipe = 0;
+            int useShm = 0;
+            int useSocket = 0;
+
+            if (radioUsePipe.Checked)
+                usePipe = 1;
+
+            if (radioUseSHM.Checked)
+                useShm = 1;
+
+            if (radioUseSocket.Checked)
+                useSocket = 1;
+
+            uint port = 0;
+
+            if (!uint.TryParse(txtPort.Text, out port))
+            {
+                MessageBox.Show("Error: Please provide a valid port from 0 to 65535.", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             myContext filehandle = new myContext();
             if (!initializeFileSchedule(newFile, filehandle, true))
             {
@@ -170,15 +192,14 @@ namespace FilediskProxyNet
             txtContainerFile.Text = ofdVaultFile.FileName = filehandle.filename;
 
             filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
-            Int64 ctxref = 0;
-            int usePipe = 0;
-            if (radioUsePipe.Checked)
-                usePipe = 1;
 
-            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, usePipe, ref ctxref);
+            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, usePipe, useShm, useSocket, port, ref ctxref);
             if (result != 0)
             {
                 filehandle.usePipe = usePipe;
+                filehandle.useShm = useShm;
+                filehandle.useSocket = useSocket;
+                filehandle.port = port;
                 filehandle.ctx = ctxref;
                 myStopWatchRunningTime.Restart();
                 timerUpdateStatus.Enabled = false;
@@ -203,11 +224,135 @@ namespace FilediskProxyNet
             {
                 obj.myThread = new Thread(new ParameterizedThreadStart(ProxyPipeServerThreadFunction));
             }
-            else
+            else if (obj.useShm == 1)
             {
                 obj.myThread = new Thread(new ParameterizedThreadStart(ProxySHMServerThreadFunction));
             }
+            else if (obj.useSocket == 1)
+            {
+                obj.myThread = new Thread(new ParameterizedThreadStart(ProxySocketServerThreadFunction));
+            }
             obj.myThread.Start(obj);
+        }
+
+        private void ProxySocketServerThreadFunction(Object obj)
+        {
+            myContext filehandle = (myContext)obj;
+            UInt32 WaitStatus;
+
+            // initialize a buffer
+            byte[] buffer = new byte[myContext.ShmSize];
+
+            // notify windows of drive add
+            filehandle.fdpObject.NotifyWindows(filehandle.ctx, 1);
+
+            // phase 1 = infinite loop server and client
+            while (true)
+            {
+                // terminate if user set the termination flag
+                if (terminateProxy)
+                {
+                    filehandle.myThreadWaitHandle.Set();
+                    return;
+                }
+
+                // wait for driver event to occur
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
+                if (WaitStatus == myContext.WAIT_OBJECT_0)
+                {
+                    // success, the driver set the event flag
+                    // reset the same event and proces the request
+                    filehandle.fdpObject.SetEventDriverRequestDataSet(filehandle.ctx, 0);                    
+                }
+                else if (WaitStatus == myContext.WAIT_TIMEOUT)
+                {
+                    // the driver did not set the event flag, so continue
+                    continue;
+                }
+                else
+                {
+                    // error or exception, continue
+                    continue;
+                }
+
+                
+                // step 1: receive request
+
+                // client connected at this point
+                // we directly connect to the socket and receive request upon connection.
+                // accept the incoming client connection
+                filehandle.fdpObject.SocketAcceptClient(filehandle.ctx);
+
+                UInt64 offset = 0;
+                UInt32 length = 0;
+                byte function = 0;
+                UInt32 totalBytesReadWrite = 0;
+                // Step 1: receive request from the client
+                filehandle.fdpObject.Step1SocketGetRequest(filehandle.ctx, ref offset, ref length, ref function, ref totalBytesReadWrite);
+
+
+
+                // step 2: io
+
+
+
+                // set position in backend disk file
+                filehandle.fs.Seek((long)offset, SeekOrigin.Begin);
+
+                // set the proxy idle event for the client to unblock because we have processed the request.
+                // then we must wait for the client to process and set the flag for us to unblock and only then proceed.
+                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+                filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+                filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 0);
+
+                // now process the i/o
+                if (function == myContext.IRP_MJ_READ)
+                {
+                    // driver request read into buffer
+                    filehandle.fs.Read(buffer, 0, (int)length);
+                    CopyToGlobalBuffer(buffer, 0, filehandle.__buffer0, 0, (int)length);
+                    filehandle.fdpObject.WriteSocket(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    filehandle.totalDataRead_BigDecimal += length;
+                    filehandle.bandwidthRead += length;
+                }
+                else
+                {
+                    // driver request write through buffer into virtual disk file
+                    filehandle.fdpObject.ReadSocket(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
+                    filehandle.fs.Write(buffer, 0, (int)length);
+                    filehandle.fs.Flush();
+                    filehandle.totalDataWrite_BigDecimal += length;
+                    filehandle.bandwidthWrite += length;
+                }
+
+                // set the proxy idle event for the client to unblock because we have processed the request.
+                // then we must wait for the client to process and set the flag for us to unblock and only then proceed.
+                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+                filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+                filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 0);
+
+
+
+                // Step 3: set/reset the events and reset and reloop as the request has been processed at this point.
+
+
+
+                // finally set the proxy idle event this final time, for the driver to unblock and reset and reloop or complete the session context.
+                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+                filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+                filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 0);
+
+                
+
+                // Step 4: close the client socket
+                filehandle.fdpObject.CloseClientSocket(filehandle.ctx);
+
+
+
+                // Step 5: completed. reset reloop
+
+            }
         }
 
         private void ProxyPipeServerThreadFunction(Object obj)
@@ -317,6 +462,9 @@ namespace FilediskProxyNet
 
             UInt32 WaitStatus;
 
+            // initialize a buffer
+            byte[] buffer = new byte[myContext.ShmSize];
+
             // notify windows of drive add
             filehandle.fdpObject.NotifyWindows(filehandle.ctx, 1);
 
@@ -362,9 +510,6 @@ namespace FilediskProxyNet
 
                 // set position in backend disk file
                 filehandle.fs.Seek(offset, SeekOrigin.Begin);
-
-                // initialize a buffer
-                byte[] buffer = new byte[length];
 
                 if (function == myContext.IRP_MJ_READ)
                 {
@@ -536,6 +681,14 @@ namespace FilediskProxyNet
 
             commonMethods1.openFolder(filehandle.drivePath);
 
+        }
+
+        private void radioUseSocket_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioUseSocket.Checked)
+                txtPort.Enabled = true;
+            else
+                txtPort.Enabled = false;
         }
     }
 }

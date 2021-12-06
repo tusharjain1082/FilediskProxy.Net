@@ -75,6 +75,9 @@ namespace FilediskProxyNet
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
             this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
+            this.radioUseSocket = new System.Windows.Forms.RadioButton();
+            this.label4 = new System.Windows.Forms.Label();
+            this.txtPort = new System.Windows.Forms.TextBox();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -442,11 +445,14 @@ namespace FilediskProxyNet
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.label4);
+            this.groupBox2.Controls.Add(this.radioUseSocket);
+            this.groupBox2.Controls.Add(this.txtPort);
             this.groupBox2.Controls.Add(this.radioUsePipe);
             this.groupBox2.Controls.Add(this.radioUseSHM);
             this.groupBox2.Location = new System.Drawing.Point(3, 214);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(795, 100);
+            this.groupBox2.Size = new System.Drawing.Size(795, 180);
             this.groupBox2.TabIndex = 55;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "configure request i/o type";
@@ -605,6 +611,39 @@ namespace FilediskProxyNet
             // 
             this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
             // 
+            // radioUseSocket
+            // 
+            this.radioUseSocket.AutoSize = true;
+            this.radioUseSocket.Location = new System.Drawing.Point(24, 122);
+            this.radioUseSocket.Name = "radioUseSocket";
+            this.radioUseSocket.Size = new System.Drawing.Size(206, 28);
+            this.radioUseSocket.TabIndex = 42;
+            this.radioUseSocket.Text = "use windows sockets";
+            this.radioUseSocket.UseVisualStyleBackColor = true;
+            this.radioUseSocket.CheckedChanged += new System.EventHandler(this.radioUseSocket_CheckedChanged);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label4.Location = new System.Drawing.Point(19, 94);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(133, 25);
+            this.label4.TabIndex = 43;
+            this.label4.Text = "port number:";
+            // 
+            // txtPort
+            // 
+            this.txtPort.Enabled = false;
+            this.txtPort.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtPort.ForeColor = System.Drawing.Color.Black;
+            this.txtPort.Location = new System.Drawing.Point(274, 98);
+            this.txtPort.MaxLength = 0;
+            this.txtPort.Name = "txtPort";
+            this.txtPort.Size = new System.Drawing.Size(368, 44);
+            this.txtPort.TabIndex = 42;
+            this.txtPort.Text = "1";
+            // 
             // FormRoot
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -683,6 +722,9 @@ namespace FilediskProxyNet
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.RadioButton radioUsePipe;
         private System.Windows.Forms.RadioButton radioUseSHM;
+        private System.Windows.Forms.RadioButton radioUseSocket;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.TextBox txtPort;
     }
 }
 
