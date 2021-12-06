@@ -3,6 +3,14 @@ A very-very simple tutorial level and basic example in C++ and C# and .Net of a 
 
 Please note that the work is in progress. Nessessary code has been completed. There might be bugs, so you may inform them to me or fix them yourself.
 
+there are 3 modes available in both the driver and the proxy application server. both software make use of them to run file based virtual disk drive. offcourse bugs may exist but fixable.
+
+1. shared memory
+2. pipe
+3. winsock2
+
+please open the "filedisk-proxy-test" folder where you can find the binary executable files and test and use them.
+
 1. turn on the windows test signed drivers mode. then reboot is required.
 2. run the script install.cmd
 3. run the script start.cmd
