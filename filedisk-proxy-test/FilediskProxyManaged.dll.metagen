@@ -1,0 +1,38 @@
+ImageRuntimeVersion: v4.0.30319
+Assembly FilediskProxyManaged, Version=1.0.*, Culture=Invariant Language (Invariant Country): 
+	hash=SHA1, flags=PublicKey
+Assembly mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Data, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Assembly System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=None, flags=None
+Class FilediskProxyManaged.FilediskProxyManaged: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Interfaces:
+    System.IDisposable
+  Methods:
+    init_ctx(Byte, UInt64, Int32, Int64&): PrivateScope, Public, HideBySig
+    delete_ctx(Int64): PrivateScope, Public, HideBySig
+    SetEventDriverRequestDataSet(Int64, Int32): PrivateScope, Public, HideBySig
+    SetEventProxyIdle(Int64, Int32): PrivateScope, Public, HideBySig
+    SetEventRequestComplete(Int64, Int32): PrivateScope, Public, HideBySig
+    NotifyWindows(Int64, Int32): PrivateScope, Public, HideBySig
+    WaitEventDriverRequestDataSet(Int64, UInt32 IsLong): PrivateScope, Public, HideBySig
+    WaitEventProxyIdle(Int64, UInt32 IsLong): PrivateScope, Public, HideBySig
+    WaitEventRequestComplete(Int64, UInt32 IsLong): PrivateScope, Public, HideBySig
+    GetSHMHeader(Int64, Int64&, UInt32&, Byte&, UInt32&): PrivateScope, Public, HideBySig
+    SetSHMHeader(Int64, Int64, UInt32 IsLong, Byte, UInt32 IsLong): PrivateScope, Public, HideBySig
+    GetSHMBuffer(Int64, Int64, UInt32 IsLong, Int64): PrivateScope, Public, HideBySig
+    SetSHMBuffer(Int64, Int64, UInt32 IsLong, Int64): PrivateScope, Public, HideBySig
+    Step1PipeGetRequest(Int64, UInt64&, UInt32&, Byte&, UInt32&): PrivateScope, Public, HideBySig
+    ReadIOPipe(Int64, Int64, Int64): PrivateScope, Public, HideBySig
+    WriteIOPipe(Int64, Int64, Int64): PrivateScope, Public, HideBySig
+    ConnectRequestPipe(Int64): PrivateScope, Public, HideBySig
+    DisconnectRequestPipe(Int64): PrivateScope, Public, HideBySig
+    ConnectIOPipe(Int64): PrivateScope, Public, HideBySig
+    DisconnectIOPipe(Int64): PrivateScope, Public, HideBySig
+    delete_pipes(Int64): PrivateScope, Public, HideBySig
+    Dispose(): PrivateScope, Public, Final, Virtual, HideBySig
