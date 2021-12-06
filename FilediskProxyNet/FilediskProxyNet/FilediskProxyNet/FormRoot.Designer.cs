@@ -59,6 +59,9 @@ namespace FilediskProxyNet
             this.cmdLoadFile = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.radioUseSocket = new System.Windows.Forms.RadioButton();
+            this.txtPort = new System.Windows.Forms.TextBox();
             this.radioUsePipe = new System.Windows.Forms.RadioButton();
             this.radioUseSHM = new System.Windows.Forms.RadioButton();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
@@ -75,9 +78,7 @@ namespace FilediskProxyNet
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
             this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
-            this.radioUseSocket = new System.Windows.Forms.RadioButton();
-            this.label4 = new System.Windows.Forms.Label();
-            this.txtPort = new System.Windows.Forms.TextBox();
+            this.cmdClose = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -114,6 +115,7 @@ namespace FilediskProxyNet
             // groupBox3
             // 
             this.groupBox3.BackColor = System.Drawing.Color.Ivory;
+            this.groupBox3.Controls.Add(this.cmdClose);
             this.groupBox3.Controls.Add(this.label2);
             this.groupBox3.Controls.Add(this.txtDrivePath);
             this.groupBox3.Controls.Add(this.label17);
@@ -457,6 +459,39 @@ namespace FilediskProxyNet
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "configure request i/o type";
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label4.Location = new System.Drawing.Point(19, 94);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(133, 25);
+            this.label4.TabIndex = 43;
+            this.label4.Text = "port number:";
+            // 
+            // radioUseSocket
+            // 
+            this.radioUseSocket.AutoSize = true;
+            this.radioUseSocket.Location = new System.Drawing.Point(24, 122);
+            this.radioUseSocket.Name = "radioUseSocket";
+            this.radioUseSocket.Size = new System.Drawing.Size(206, 28);
+            this.radioUseSocket.TabIndex = 42;
+            this.radioUseSocket.Text = "use windows sockets";
+            this.radioUseSocket.UseVisualStyleBackColor = true;
+            this.radioUseSocket.CheckedChanged += new System.EventHandler(this.radioUseSocket_CheckedChanged);
+            // 
+            // txtPort
+            // 
+            this.txtPort.Enabled = false;
+            this.txtPort.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtPort.ForeColor = System.Drawing.Color.Black;
+            this.txtPort.Location = new System.Drawing.Point(274, 98);
+            this.txtPort.MaxLength = 0;
+            this.txtPort.Name = "txtPort";
+            this.txtPort.Size = new System.Drawing.Size(368, 44);
+            this.txtPort.TabIndex = 42;
+            this.txtPort.Text = "1";
+            // 
             // radioUsePipe
             // 
             this.radioUsePipe.AutoSize = true;
@@ -611,38 +646,17 @@ namespace FilediskProxyNet
             // 
             this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
             // 
-            // radioUseSocket
+            // cmdClose
             // 
-            this.radioUseSocket.AutoSize = true;
-            this.radioUseSocket.Location = new System.Drawing.Point(24, 122);
-            this.radioUseSocket.Name = "radioUseSocket";
-            this.radioUseSocket.Size = new System.Drawing.Size(206, 28);
-            this.radioUseSocket.TabIndex = 42;
-            this.radioUseSocket.Text = "use windows sockets";
-            this.radioUseSocket.UseVisualStyleBackColor = true;
-            this.radioUseSocket.CheckedChanged += new System.EventHandler(this.radioUseSocket_CheckedChanged);
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label4.Location = new System.Drawing.Point(19, 94);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(133, 25);
-            this.label4.TabIndex = 43;
-            this.label4.Text = "port number:";
-            // 
-            // txtPort
-            // 
-            this.txtPort.Enabled = false;
-            this.txtPort.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtPort.ForeColor = System.Drawing.Color.Black;
-            this.txtPort.Location = new System.Drawing.Point(274, 98);
-            this.txtPort.MaxLength = 0;
-            this.txtPort.Name = "txtPort";
-            this.txtPort.Size = new System.Drawing.Size(368, 44);
-            this.txtPort.TabIndex = 42;
-            this.txtPort.Text = "1";
+            this.cmdClose.BackColor = System.Drawing.Color.White;
+            this.cmdClose.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cmdClose.Location = new System.Drawing.Point(664, 123);
+            this.cmdClose.Name = "cmdClose";
+            this.cmdClose.Size = new System.Drawing.Size(130, 30);
+            this.cmdClose.TabIndex = 62;
+            this.cmdClose.Text = "exit...";
+            this.cmdClose.UseVisualStyleBackColor = false;
+            this.cmdClose.Click += new System.EventHandler(this.cmdClose_Click);
             // 
             // FormRoot
             // 
@@ -658,6 +672,7 @@ namespace FilediskProxyNet
             this.Name = "FormRoot";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Filedisk Proxy .NET (work in progress)";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FrmRoot_FormClosing);
             this.Load += new System.EventHandler(this.FormRoot_Load);
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
@@ -725,6 +740,7 @@ namespace FilediskProxyNet
         private System.Windows.Forms.RadioButton radioUseSocket;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.TextBox txtPort;
+        private System.Windows.Forms.Button cmdClose;
     }
 }
 

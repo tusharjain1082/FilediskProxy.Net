@@ -79,7 +79,6 @@ typedef struct _DEVICE_EXTENSION {
     KEVENT                      request_event;
     PVOID                       thread_pointer;
     BOOLEAN                     terminate_thread;
-    //BOOLEAN                     fileClosingNow;
     BOOLEAN                     isFoundationDevice;
     HANDLE                      LogFileDevice;
     BOOL                        usePipe;
@@ -89,11 +88,14 @@ typedef struct _DEVICE_EXTENSION {
     int                         sock;
     ULONG                       lport;
     PCONTEXT_REQUEST            request;
+    PBYTE                       __ioBuffer;
 
     // driver's shared memory
     PVOID                   	g_pSharedSection;
     PVOID                   	g_pSectionObj;
     HANDLE                  	g_hSection;
+
+    // events
     PVOID                   	pDriverRequestDataSetObj;
     HANDLE                      DriverRequestDataSet;
     PKEVENT                     KeDriverRequestDataSetObj;
@@ -111,9 +113,6 @@ typedef struct _DEVICE_EXTENSION {
     PVOID                   	pShutdownCompleteObj;
     HANDLE                      ShutdownComplete;
     PKEVENT                     KeShutdownCompleteObj;
-
-    // pipelines
-    //HANDLE                      hReqServerPipe;
 } DEVICE_EXTENSION, * PDEVICE_EXTENSION;
 
 #ifdef _PREFAST_
@@ -128,18 +127,12 @@ DRIVER_UNLOAD FileDiskUnload;
 NTSTATUS FileDiskCreateFoundationDevice(IN PDRIVER_OBJECT   DriverObject);
 NTSTATUS CreateSharedMemory(PDEVICE_OBJECT device_object);
 void ReleaseSharedMemory(PDEVICE_OBJECT device_object);
-NTSTATUS CreateSharedEvents(PDEVICE_OBJECT device_object);
 NTSTATUS CreateSharedEventsKe(PDEVICE_OBJECT device_object);
 void DeleteSharedEvents(PDEVICE_OBJECT device_object);
 NTSTATUS SetSecurityAllAccess(HANDLE h, PVOID obj);
 NTSTATUS openPipe(PDEVICE_OBJECT device_object);
 NTSTATUS closePipe(PDEVICE_OBJECT device_object);
 void printStatusFile(char* path, char* status);
-//VOID CancelIrpRoutine(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
-//NTSTATUS DispatchCleanup(PDEVICE_OBJECT fdo, PIRP Irp);
-//NTSTATUS CompleteRequest(PIRP Irp, NTSTATUS status, ULONG_PTR Information);
-//VOID FileDiskClearQueue(IN PVOID Context);
-VOID FileDiskFreeIrpWithMdls(PIRP Irp);
 HANDLE initLog(char* file, ULONG DeviceNumber);
 VOID Log(HANDLE handle, char* text);
 VOID freeLog(HANDLE handle);
@@ -475,6 +468,9 @@ FileDiskCreateDevice(
     device_extension->device_number = Number;
     device_extension->device_type = DeviceType;
 
+    // todo tushar
+    device_object->Characteristics |= FILE_REMOVABLE_MEDIA;
+
     /* original
     if (DeviceType == FILE_DEVICE_CD_ROM)
     {
@@ -501,8 +497,9 @@ FileDiskCreateDevice(
     // TODO tushar: create current device's events
     CreateSharedEventsKe(device_object);
 
-    // TODO tushar: allocate context request
+    // TODO tushar: allocate context request and io buffer
     device_extension->request = (PCONTEXT_REQUEST)ExAllocatePoolZero(PagedPool, REQUEST_BUFFER_SIZE + 1, FILE_DISK_POOL_TAG);
+    device_extension->__ioBuffer = ExAllocatePoolZero(PagedPool, IO_BUFFER_SIZE + 1, FILE_DISK_POOL_TAG);
 
     // TODO tushar: now initialize device number based log file
     device_extension->LogFileDevice = initLog(TEXT(LOG_FILE_NAME_PATH), Number);
@@ -709,6 +706,7 @@ FileDiskDeleteDevice(
 
     // finally delete all other objects
     ExFreePoolWithTag(device_extension->request, FILE_DISK_POOL_TAG);
+    ExFreePoolWithTag(device_extension->__ioBuffer, FILE_DISK_POOL_TAG);
 
     // todo tushar
     // finally delete Base Device's link
@@ -1248,15 +1246,28 @@ FileDiskDeviceControl(
 
         info = (PSTORAGE_HOTPLUG_INFO)Irp->AssociatedIrp.SystemBuffer;
 
+        // todo tushar**************
+        // working, write caching disabled
         info->Size = sizeof(STORAGE_HOTPLUG_INFO);
-        info->MediaRemovable = 0;
-        info->MediaHotplug = 0;
-        info->DeviceHotplug = 0;
+        info->MediaRemovable = TRUE;
+        info->MediaHotplug = TRUE;
+        info->DeviceHotplug = TRUE;
+        info->WriteCacheEnableOverride = FALSE;
+
+        status = STATUS_SUCCESS;
+        Irp->IoStatus.Information = sizeof(STORAGE_HOTPLUG_INFO);
+        // todo tushar**************
+
+        /* original
+        info->Size = sizeof(STORAGE_HOTPLUG_INFO);
+        info->MediaRemovable = 1;
+        info->MediaHotplug = 1;
+        info->DeviceHotplug = 1;
         info->WriteCacheEnableOverride = 0;
 
         status = STATUS_SUCCESS;
         Irp->IoStatus.Information = sizeof(STORAGE_HOTPLUG_INFO);
-
+        */
         break;
     }
 
@@ -1524,7 +1535,7 @@ BOOL connectToSocket(IN PVOID Context)
     //Log(device_extension->LogFileDevice, &port);
 
     PBYTE port = ExAllocatePoolWithTag(PagedPool, 16, FILE_DISK_POOL_TAG);
-    sprintf_s(port, sizeof(port), "%d", device_extension->lport);
+    sprintf_s(port, 16, "%d", device_extension->lport);
 
     //// Connect to server.
     while (TRUE)
@@ -1659,22 +1670,21 @@ int Socket2Steps(IN PVOID Context, PIRP irp)
     int sockResult;
 
     
-    PBYTE buffer = ExAllocatePoolWithTag(PagedPool, MAJOR_BUFFER_SIZE, FILE_DISK_POOL_TAG);
     if (io_stack->MajorFunction == IRP_MJ_READ)
     {
         // use spin lock loop to successfully recieve data. it might be that the proxy app server is busy, so it takes time for the data to arrive.
-        ReadSocketComplete(device_extension->sock, buffer, io_stack->Parameters.Read.Length);
-        RtlCopyMemory(system_buffer, buffer, io_stack->Parameters.Read.Length);
+        ReadSocketComplete(device_extension->sock, device_extension->__ioBuffer, io_stack->Parameters.Read.Length);
+        RtlCopyMemory(system_buffer, device_extension->__ioBuffer, io_stack->Parameters.Read.Length);
 //        Log(device_extension->LogFileDevice, "Socket2Steps->recv io completed. data received.\r\n");
     }
     else
     {
         // use spin lock loop to successfully send data. it might be that the proxy app server is busy, so it takes time for the data to be received by the proxy app server.
-        RtlCopyMemory(buffer, system_buffer, io_stack->Parameters.Write.Length);
-        sockResult = send(device_extension->sock, buffer, io_stack->Parameters.Write.Length, 0);
+        RtlCopyMemory(device_extension->__ioBuffer, system_buffer, io_stack->Parameters.Write.Length);
+        sockResult = send(device_extension->sock, device_extension->__ioBuffer, io_stack->Parameters.Write.Length, 0);
 //        Log(device_extension->LogFileDevice, "Socket2Steps->send io completed. data sent.\r\n");
     }
-    ExFreePoolWithTag(buffer, FILE_DISK_POOL_TAG);
+//    ExFreePoolWithTag(buffer, FILE_DISK_POOL_TAG);
     
 
     // proper synchronisation between all processing in both client and server for each and every procedure.
@@ -2139,6 +2149,7 @@ VOID FileDiskSHMReadWrite(IN PVOID Context, PIRP irp)
         //sprintf_s(&txt, 256, "%s: %u", "shmRequest->ByteOffset", shmRequest->ByteOffset);
         //Log(device_extension->LogFileDevice, &txt);
 
+        // copy windows's provided input data to the shared memory
         system_buffer = (PUCHAR)MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority | MdlMappingNoWrite);// NormalPagePriority);
         RtlCopyBytes(shmBuffer + SHM_HEADER_SIZE, system_buffer, io_stack->Parameters.Write.Length);
 
@@ -2364,7 +2375,6 @@ FileDiskOpenFile(
     device_extension->usePipe = open_file_information->usePipe;
     device_extension->useShm = open_file_information->useShm;
     device_extension->useSocket = open_file_information->useSocket;
-    //RtlCopyMemory(device_extension->port, open_file_information->port, sizeof(open_file_information->port));
     device_extension->lport = open_file_information->lport;
 
     device_extension->file_name.Length = open_file_information->FileNameLength;

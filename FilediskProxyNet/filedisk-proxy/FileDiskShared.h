@@ -66,7 +66,7 @@ static const char PIPE_NAME_USERMODEAPP[] = "\\\\.\\pipe\\FileDiskPipe";
 static const int PIPE_BUFFER_SIZE = 1048576;
 #define REQUEST_BUFFER_SIZE 1024
 static const int SOCKET_BUFFER_SIZE = 10485760;
-static const int MAJOR_BUFFER_SIZE = 104857600;
+static const int IO_BUFFER_SIZE = 104857600; // 100 mb // 52428800: 50 mb
 
 //static const int PIPE_BUFFER_SIZE_TRUE = 4096;
 
@@ -93,7 +93,6 @@ typedef struct _OPEN_FILE_INFORMATION {
     BOOL            usePipe;
     BOOL            useShm;
     BOOL            useSocket;
-    char            port[16];
     ULONG           lport;
 } OPEN_FILE_INFORMATION, * POPEN_FILE_INFORMATION;
 

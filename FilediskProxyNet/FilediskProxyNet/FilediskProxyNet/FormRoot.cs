@@ -24,11 +24,34 @@ namespace FilediskProxyNet
         myContext filehandle = null;
         bool terminateProxy = false;
         Stopwatch myStopWatchRunningTime = new Stopwatch();
+        bool properExit = false;
 
         public FormRoot()
         {
             InitializeComponent();
         }
+
+        private void FrmRoot_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (!properExit)
+            {
+                var res = MessageBox.Show(this, "you cannot directly close this form. please click on exit button to close the form.", "error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                e.Cancel = true;
+            }
+            else
+            {
+                e.Cancel = false;
+            }
+            base.OnClosing(e);
+
+            //            if (res != DialogResult.Yes)
+            //          {
+            //            e.Cancel = true;
+            //          return;
+            //    }
+        }
+
 
         private void FormRoot_Load(object sender, EventArgs e)
         {
@@ -233,6 +256,11 @@ namespace FilediskProxyNet
                 obj.myThread = new Thread(new ParameterizedThreadStart(ProxySocketServerThreadFunction));
             }
             obj.myThread.Start(obj);
+
+            // open the folder
+            Thread.Sleep(2000);
+            commonMethods1.openFolder(obj.drivePathComplete);
+
         }
 
         private void ProxySocketServerThreadFunction(Object obj)
@@ -257,7 +285,7 @@ namespace FilediskProxyNet
                 }
 
                 // wait for driver event to occur
-                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 1000);
                 if (WaitStatus == myContext.WAIT_OBJECT_0)
                 {
                     // success, the driver set the event flag
@@ -378,7 +406,7 @@ namespace FilediskProxyNet
                 }
 
                 // wait for driver event to occur
-                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 1000);
                 if (WaitStatus == myContext.WAIT_OBJECT_0)
                 {
                     // success, the driver set the event flag
@@ -479,7 +507,7 @@ namespace FilediskProxyNet
                 }
 
                 // wait for driver event to occur
-                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 10000);
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 1000);
                 if (WaitStatus == myContext.WAIT_OBJECT_0)
                 {
                     // success, the driver set the event flag
@@ -689,6 +717,20 @@ namespace FilediskProxyNet
                 txtPort.Enabled = true;
             else
                 txtPort.Enabled = false;
+        }
+
+        private void cmdClose_Click(object sender, EventArgs e)
+        {
+            if (filehandle != null)
+            {
+                MessageBox.Show(this, "error: you have loaded a file. please unload it before closing this form.", "cannot exit without unloading the file.", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, (MessageBoxOptions)0x40000);  // MB_TOPMOST
+                return;
+            }
+
+            this.properExit = true;
+            GC.Collect();
+            this.Close();
+            this.Dispose();
         }
     }
 }

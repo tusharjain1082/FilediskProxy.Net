@@ -237,7 +237,6 @@ namespace FilediskProxyNative
         ctx->usePipe = ctx->fileConfig->usePipe = usePipe;
         ctx->useShm = ctx->fileConfig->useShm = useShm;
         ctx->useSocket = ctx->fileConfig->useSocket = useSocket;
-        std::sprintf(ctx->fileConfig->port, "%u", port);
         std::sprintf(ctx->port, "%u", port);
         ctx->lport = ctx->fileConfig->lport = port;
 
