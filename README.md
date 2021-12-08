@@ -17,3 +17,11 @@ please open the "filedisk-proxy-test" folder where you can find the binary execu
 4. then FilediskProxyNet.exe.
 5. if everything is working OK, driver is installing and has started, then FilediskProxyNet.exe can run virtual disk through the driver.
 6. please note that you must run everything in Administrator account with Administrative previliges. or it won't work at all.
+
+to compile the solution:
+1. use visual studio 2019 with latest sdk and wdk.
+2. set the configuration for all projects to "release".
+3. set the platform for all projects to "x64".
+4. then run rebuild all.
+5. please note that all projects must output to a single path.
+6. for your convenience, precompiled binary files are available in "filedisk-proxy-test" folder.
