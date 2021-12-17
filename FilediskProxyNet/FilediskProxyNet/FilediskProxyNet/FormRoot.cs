@@ -72,6 +72,143 @@ namespace FilediskProxyNet
             if (txtContainerFile.Text.Length > 0)
                 return false;
 
+            long newOffset = -1;
+            long newOffsetByte = -1;
+            long newOffsetKB = -1;
+            long newOffsetMB = -1;
+            long newOffsetGB = -1;
+
+            if (radioOffsetByte.Checked)
+            {
+                if (!long.TryParse(txtOffsetByte.Text, out newOffsetByte))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newOffsetByte <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                newOffset = newOffsetByte;
+            }
+            else if (radioOffsetKB.Checked)
+            {
+                if (!long.TryParse(txtOffsetKB.Text, out newOffsetKB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newOffsetKB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newOffset = (newOffsetKB * 1024);
+            }
+            else if (radioOffsetMB.Checked)
+            {
+                if (!long.TryParse(txtOffsetMB.Text, out newOffsetMB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newOffsetMB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newOffset = ((newOffsetMB * 1024) * 1024);
+            }
+            else if (radioOffsetGB.Checked)
+            {
+                if (!long.TryParse(txtOffsetGB.Text, out newOffsetGB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newOffsetGB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newOffset = (((newOffsetGB * 1024) * 1024) * 1024);
+            }
+
+
+            long newVirtualSize = -1;
+            long newVirtualSizeByte = -1;
+            long newVirtualSizeKB = -1;
+            long newVirtualSizeMB = -1;
+            long newVirtualSizeGB = -1;
+
+            if (radioVirtualImageSizeByte.Checked)
+            {
+                if (!long.TryParse(txtVirtualImageSizeByte.Text, out newVirtualSizeByte))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newVirtualSizeByte <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                newVirtualSize = newVirtualSizeByte;
+            }
+            else if (radioVirtualImageSizeKB.Checked)
+            {
+                if (!long.TryParse(txtVirtualImageSizeKB.Text, out newVirtualSizeKB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newVirtualSizeKB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newVirtualSize = (newVirtualSizeKB * 1024);
+            }
+            else if (radioVirtualImageSizeMB.Checked)
+            {
+                if (!long.TryParse(txtVirtualImageSizeMB.Text, out newVirtualSizeMB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newVirtualSizeMB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newVirtualSize = ((newVirtualSizeMB * 1024) * 1024);
+            }
+            else if (radioVirtualImageSizeGB.Checked)
+            {
+                if (!long.TryParse(txtVirtualImageSizeGB.Text, out newVirtualSizeGB))
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                if (newVirtualSizeGB <= -1)
+                {
+                    MessageBox.Show("Error: Please provide a number", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+                newVirtualSize = (((newVirtualSizeGB * 1024) * 1024) * 1024);
+            }
+
             long newFileSize = -1;
             long newFileSizeMB = -1;
             long newFileSizeGB = -1;
@@ -141,9 +278,41 @@ namespace FilediskProxyNet
                 filename = ofdVaultFile.FileName;
             }
 
+            // check if it is new file then new file's size, else the file is being loaded, so collect it's existing size.
+            newFileSize = ((newVHDFile) ? newFileSize : new FileInfo(filename).Length);
+            
+            // check if the virtual size was provided then use it, else assume entire file size is required to be provided as virtual size.
+            if (newVirtualSize == 0)
+            {
+                if (newOffset > 0)
+                {
+                    // offset has been specified by the user but not virtual image size, so we take the entire remainder of the file starting from the offset as the virtual disk image.
+                    newVirtualSize = (newFileSize - newOffset);
+                }
+                else
+                {
+                    // offset and virtual image size not specified, so we take entire file size as the virtual disk image.
+                    newVirtualSize = newFileSize;
+                }
+
+            }
+            else
+            {
+                // virtual image size provided, so we verify that the offset + virtual image size does not exceed the original file size.
+                long lFileSizeTmp = newOffset + newVirtualSize;
+                if (lFileSizeTmp > newFileSize)
+                {
+                    MessageBox.Show("Error: starting byte offset + virtual image size exceed the provided total file size. please fix and retry.", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+            }
+
+
             filehandle.filename = filename;
             filehandle.driveletter[0] = driveLetter[0];
-            filehandle.file_size = ((newVHDFile) ? newFileSize : new FileInfo(filename).Length);
+            filehandle.file_size_true = newFileSize;
+            filehandle.virtual_image_size = newVirtualSize;
+            filehandle.offset = newOffset;
             filehandle.newVHDFile = newVHDFile;
             filehandle.readOnlyVHD = chkReadOnlyVHD.Checked;
             filehandle.drivePath = filehandle.driveletter[0] + @":";
@@ -157,12 +326,12 @@ namespace FilediskProxyNet
                 if (File.Exists(destFile))
                     commonMethods1.DeleteFile(destFile);
 
-                filehandle.fs = commonMethods1.CreateInitializeFile(destFile, filehandle.file_size, true);
+                filehandle.fs = commonMethods1.CreateInitializeFile(destFile, filehandle.file_size_true, true);
             }
             else
             {
                 // open existing file
-                filehandle.fs = commonMethods1.CreateInitializeFile(destFile, filehandle.file_size, false);
+                filehandle.fs = commonMethods1.CreateInitializeFile(destFile, filehandle.file_size_true, false);
             }
 
             // now initialize native i/o buffers
@@ -216,7 +385,7 @@ namespace FilediskProxyNet
 
             filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
 
-            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.file_size, usePipe, useShm, useSocket, port, ref ctxref);
+            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, port, ref ctxref);
             if (result != 0)
             {
                 filehandle.usePipe = usePipe;
@@ -324,8 +493,12 @@ namespace FilediskProxyNet
 
 
 
+                // prepare final offset which is virtual disk's physical offset in the file + the provided virtual offset
+                long finalOffset = filehandle.offset;
+                finalOffset += (long)offset;
+
                 // set position in backend disk file
-                filehandle.fs.Seek((long)offset, SeekOrigin.Begin);
+                filehandle.fs.Seek(finalOffset, SeekOrigin.Begin);
 
                 // set the proxy idle event for the client to unblock because we have processed the request.
                 // then we must wait for the client to process and set the flag for us to unblock and only then proceed.
@@ -444,8 +617,12 @@ namespace FilediskProxyNet
 
 
 
+                // prepare final offset which is virtual disk's physical offset in the file + the provided virtual offset
+                long finalOffset = filehandle.offset;
+                finalOffset += (long)offset;
+
                 // set position in backend disk file
-                filehandle.fs.Seek((long)offset, SeekOrigin.Begin);
+                filehandle.fs.Seek(finalOffset, SeekOrigin.Begin);
 
                 // now process the i/o
                 if (function == myContext.IRP_MJ_READ)
@@ -536,8 +713,12 @@ namespace FilediskProxyNet
                 UInt32 totalBytesReadWrite = 0;
                 filehandle.fdpObject.GetSHMHeader(filehandle.ctx, ref offset, ref length, ref function, ref totalBytesReadWrite);
 
+                // prepare final offset which is virtual disk's physical offset in the file + the provided virtual offset
+                long finalOffset = filehandle.offset;
+                finalOffset += offset;
+
                 // set position in backend disk file
-                filehandle.fs.Seek(offset, SeekOrigin.Begin);
+                filehandle.fs.Seek(finalOffset, SeekOrigin.Begin);
 
                 if (function == myContext.IRP_MJ_READ)
                 {
@@ -731,6 +912,11 @@ namespace FilediskProxyNet
             GC.Collect();
             this.Close();
             this.Dispose();
+        }
+
+        private void txtConfigureVaultSizeMB_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }

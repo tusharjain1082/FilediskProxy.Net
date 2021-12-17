@@ -34,6 +34,7 @@ namespace FilediskProxyNet
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.cmdClose = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.txtDrivePath = new System.Windows.Forms.TextBox();
             this.label17 = new System.Windows.Forms.Label();
@@ -72,13 +73,40 @@ namespace FilediskProxyNet
             this.label1 = new System.Windows.Forms.Label();
             this.txtConfigureVaultSizeMB = new System.Windows.Forms.TextBox();
             this.tabPage3 = new System.Windows.Forms.TabPage();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.txtOffsetKB = new System.Windows.Forms.TextBox();
+            this.radioOffsetKB = new System.Windows.Forms.RadioButton();
+            this.label12 = new System.Windows.Forms.Label();
+            this.txtOffsetGB = new System.Windows.Forms.TextBox();
+            this.radioOffsetGB = new System.Windows.Forms.RadioButton();
+            this.label10 = new System.Windows.Forms.Label();
+            this.txtOffsetMB = new System.Windows.Forms.TextBox();
+            this.radioOffsetMB = new System.Windows.Forms.RadioButton();
+            this.label9 = new System.Windows.Forms.Label();
+            this.radioOffsetByte = new System.Windows.Forms.RadioButton();
+            this.label6 = new System.Windows.Forms.Label();
+            this.txtOffsetByte = new System.Windows.Forms.TextBox();
+            this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.txtVirtualImageSizeKB = new System.Windows.Forms.TextBox();
+            this.radioVirtualImageSizeKB = new System.Windows.Forms.RadioButton();
+            this.label8 = new System.Windows.Forms.Label();
+            this.txtVirtualImageSizeGB = new System.Windows.Forms.TextBox();
+            this.radioVirtualImageSizeGB = new System.Windows.Forms.RadioButton();
+            this.label15 = new System.Windows.Forms.Label();
+            this.txtVirtualImageSizeMB = new System.Windows.Forms.TextBox();
+            this.radioVirtualImageSizeMB = new System.Windows.Forms.RadioButton();
+            this.label16 = new System.Windows.Forms.Label();
+            this.radioVirtualImageSizeByte = new System.Windows.Forms.RadioButton();
+            this.label18 = new System.Windows.Forms.Label();
+            this.txtVirtualImageSizeByte = new System.Windows.Forms.TextBox();
+            this.tabPage5 = new System.Windows.Forms.TabPage();
             this.chkLiveVHDLockWriteAccess = new System.Windows.Forms.CheckBox();
             this.label14 = new System.Windows.Forms.Label();
             this.sfdVaultFile = new System.Windows.Forms.SaveFileDialog();
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
             this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
-            this.cmdClose = new System.Windows.Forms.Button();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -87,6 +115,10 @@ namespace FilediskProxyNet
             this.groupBox2.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.tabPage3.SuspendLayout();
+            this.groupBox4.SuspendLayout();
+            this.tabPage4.SuspendLayout();
+            this.groupBox5.SuspendLayout();
+            this.tabPage5.SuspendLayout();
             this.SuspendLayout();
             // 
             // tabControl1
@@ -94,6 +126,8 @@ namespace FilediskProxyNet
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
+            this.tabControl1.Controls.Add(this.tabPage4);
+            this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
@@ -143,6 +177,18 @@ namespace FilediskProxyNet
             this.groupBox3.TabIndex = 29;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "container 1";
+            // 
+            // cmdClose
+            // 
+            this.cmdClose.BackColor = System.Drawing.Color.White;
+            this.cmdClose.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cmdClose.Location = new System.Drawing.Point(664, 123);
+            this.cmdClose.Name = "cmdClose";
+            this.cmdClose.Size = new System.Drawing.Size(130, 30);
+            this.cmdClose.TabIndex = 62;
+            this.cmdClose.Text = "exit...";
+            this.cmdClose.UseVisualStyleBackColor = false;
+            this.cmdClose.Click += new System.EventHandler(this.cmdClose_Click);
             // 
             // label2
             // 
@@ -452,7 +498,7 @@ namespace FilediskProxyNet
             this.groupBox2.Controls.Add(this.txtPort);
             this.groupBox2.Controls.Add(this.radioUsePipe);
             this.groupBox2.Controls.Add(this.radioUseSHM);
-            this.groupBox2.Location = new System.Drawing.Point(3, 214);
+            this.groupBox2.Location = new System.Drawing.Point(3, 175);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(795, 180);
             this.groupBox2.TabIndex = 55;
@@ -524,7 +570,7 @@ namespace FilediskProxyNet
             this.groupBox1.Controls.Add(this.txtConfigureVaultSizeMB);
             this.groupBox1.Location = new System.Drawing.Point(3, 15);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(795, 193);
+            this.groupBox1.Size = new System.Drawing.Size(795, 156);
             this.groupBox1.TabIndex = 54;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "configure size";
@@ -592,17 +638,332 @@ namespace FilediskProxyNet
             this.txtConfigureVaultSizeMB.Size = new System.Drawing.Size(368, 44);
             this.txtConfigureVaultSizeMB.TabIndex = 36;
             this.txtConfigureVaultSizeMB.Text = "100";
+            this.txtConfigureVaultSizeMB.TextChanged += new System.EventHandler(this.txtConfigureVaultSizeMB_TextChanged);
             // 
             // tabPage3
             // 
-            this.tabPage3.BackColor = System.Drawing.Color.Khaki;
-            this.tabPage3.Controls.Add(this.chkLiveVHDLockWriteAccess);
-            this.tabPage3.Controls.Add(this.label14);
+            this.tabPage3.BackColor = System.Drawing.Color.Ivory;
+            this.tabPage3.Controls.Add(this.groupBox4);
             this.tabPage3.Location = new System.Drawing.Point(4, 33);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Size = new System.Drawing.Size(812, 513);
-            this.tabPage3.TabIndex = 3;
-            this.tabPage3.Text = "live config";
+            this.tabPage3.TabIndex = 4;
+            this.tabPage3.Text = "image offset";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.txtOffsetKB);
+            this.groupBox4.Controls.Add(this.radioOffsetKB);
+            this.groupBox4.Controls.Add(this.label12);
+            this.groupBox4.Controls.Add(this.txtOffsetGB);
+            this.groupBox4.Controls.Add(this.radioOffsetGB);
+            this.groupBox4.Controls.Add(this.label10);
+            this.groupBox4.Controls.Add(this.txtOffsetMB);
+            this.groupBox4.Controls.Add(this.radioOffsetMB);
+            this.groupBox4.Controls.Add(this.label9);
+            this.groupBox4.Controls.Add(this.radioOffsetByte);
+            this.groupBox4.Controls.Add(this.label6);
+            this.groupBox4.Controls.Add(this.txtOffsetByte);
+            this.groupBox4.Location = new System.Drawing.Point(3, 3);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(795, 286);
+            this.groupBox4.TabIndex = 57;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "configure virtual image offset";
+            // 
+            // txtOffsetKB
+            // 
+            this.txtOffsetKB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtOffsetKB.ForeColor = System.Drawing.Color.Black;
+            this.txtOffsetKB.Location = new System.Drawing.Point(273, 104);
+            this.txtOffsetKB.MaxLength = 0;
+            this.txtOffsetKB.Name = "txtOffsetKB";
+            this.txtOffsetKB.Size = new System.Drawing.Size(516, 44);
+            this.txtOffsetKB.TabIndex = 56;
+            this.txtOffsetKB.Text = "0";
+            // 
+            // radioOffsetKB
+            // 
+            this.radioOffsetKB.AutoSize = true;
+            this.radioOffsetKB.Location = new System.Drawing.Point(30, 115);
+            this.radioOffsetKB.Name = "radioOffsetKB";
+            this.radioOffsetKB.Size = new System.Drawing.Size(149, 28);
+            this.radioOffsetKB.TabIndex = 55;
+            this.radioOffsetKB.Text = "use this option";
+            this.radioOffsetKB.UseVisualStyleBackColor = true;
+            // 
+            // label12
+            // 
+            this.label12.AutoSize = true;
+            this.label12.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label12.Location = new System.Drawing.Point(25, 87);
+            this.label12.Name = "label12";
+            this.label12.Size = new System.Drawing.Size(171, 25);
+            this.label12.TabIndex = 54;
+            this.label12.Text = "offset (kilo byte):";
+            // 
+            // txtOffsetGB
+            // 
+            this.txtOffsetGB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtOffsetGB.ForeColor = System.Drawing.Color.Black;
+            this.txtOffsetGB.Location = new System.Drawing.Point(273, 222);
+            this.txtOffsetGB.MaxLength = 0;
+            this.txtOffsetGB.Name = "txtOffsetGB";
+            this.txtOffsetGB.Size = new System.Drawing.Size(516, 44);
+            this.txtOffsetGB.TabIndex = 53;
+            this.txtOffsetGB.Text = "0";
+            // 
+            // radioOffsetGB
+            // 
+            this.radioOffsetGB.AutoSize = true;
+            this.radioOffsetGB.Location = new System.Drawing.Point(30, 233);
+            this.radioOffsetGB.Name = "radioOffsetGB";
+            this.radioOffsetGB.Size = new System.Drawing.Size(149, 28);
+            this.radioOffsetGB.TabIndex = 52;
+            this.radioOffsetGB.Text = "use this option";
+            this.radioOffsetGB.UseVisualStyleBackColor = true;
+            // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label10.Location = new System.Drawing.Point(25, 205);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(179, 25);
+            this.label10.TabIndex = 51;
+            this.label10.Text = "offset (giga byte):";
+            // 
+            // txtOffsetMB
+            // 
+            this.txtOffsetMB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtOffsetMB.ForeColor = System.Drawing.Color.Black;
+            this.txtOffsetMB.Location = new System.Drawing.Point(273, 163);
+            this.txtOffsetMB.MaxLength = 0;
+            this.txtOffsetMB.Name = "txtOffsetMB";
+            this.txtOffsetMB.Size = new System.Drawing.Size(516, 44);
+            this.txtOffsetMB.TabIndex = 50;
+            this.txtOffsetMB.Text = "0";
+            // 
+            // radioOffsetMB
+            // 
+            this.radioOffsetMB.AutoSize = true;
+            this.radioOffsetMB.Location = new System.Drawing.Point(30, 174);
+            this.radioOffsetMB.Name = "radioOffsetMB";
+            this.radioOffsetMB.Size = new System.Drawing.Size(149, 28);
+            this.radioOffsetMB.TabIndex = 49;
+            this.radioOffsetMB.Text = "use this option";
+            this.radioOffsetMB.UseVisualStyleBackColor = true;
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label9.Location = new System.Drawing.Point(25, 146);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(191, 25);
+            this.label9.TabIndex = 48;
+            this.label9.Text = "offset (mega byte):";
+            // 
+            // radioOffsetByte
+            // 
+            this.radioOffsetByte.AutoSize = true;
+            this.radioOffsetByte.Checked = true;
+            this.radioOffsetByte.Location = new System.Drawing.Point(30, 56);
+            this.radioOffsetByte.Name = "radioOffsetByte";
+            this.radioOffsetByte.Size = new System.Drawing.Size(149, 28);
+            this.radioOffsetByte.TabIndex = 46;
+            this.radioOffsetByte.TabStop = true;
+            this.radioOffsetByte.Text = "use this option";
+            this.radioOffsetByte.UseVisualStyleBackColor = true;
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label6.Location = new System.Drawing.Point(25, 28);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(132, 25);
+            this.label6.TabIndex = 43;
+            this.label6.Text = "offset (byte):";
+            // 
+            // txtOffsetByte
+            // 
+            this.txtOffsetByte.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtOffsetByte.ForeColor = System.Drawing.Color.Black;
+            this.txtOffsetByte.Location = new System.Drawing.Point(273, 45);
+            this.txtOffsetByte.MaxLength = 0;
+            this.txtOffsetByte.Name = "txtOffsetByte";
+            this.txtOffsetByte.Size = new System.Drawing.Size(516, 44);
+            this.txtOffsetByte.TabIndex = 42;
+            this.txtOffsetByte.Text = "0";
+            // 
+            // tabPage4
+            // 
+            this.tabPage4.BackColor = System.Drawing.Color.LightYellow;
+            this.tabPage4.Controls.Add(this.groupBox5);
+            this.tabPage4.Location = new System.Drawing.Point(4, 33);
+            this.tabPage4.Name = "tabPage4";
+            this.tabPage4.Size = new System.Drawing.Size(812, 513);
+            this.tabPage4.TabIndex = 5;
+            this.tabPage4.Text = "image size";
+            // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.txtVirtualImageSizeKB);
+            this.groupBox5.Controls.Add(this.radioVirtualImageSizeKB);
+            this.groupBox5.Controls.Add(this.label8);
+            this.groupBox5.Controls.Add(this.txtVirtualImageSizeGB);
+            this.groupBox5.Controls.Add(this.radioVirtualImageSizeGB);
+            this.groupBox5.Controls.Add(this.label15);
+            this.groupBox5.Controls.Add(this.txtVirtualImageSizeMB);
+            this.groupBox5.Controls.Add(this.radioVirtualImageSizeMB);
+            this.groupBox5.Controls.Add(this.label16);
+            this.groupBox5.Controls.Add(this.radioVirtualImageSizeByte);
+            this.groupBox5.Controls.Add(this.label18);
+            this.groupBox5.Controls.Add(this.txtVirtualImageSizeByte);
+            this.groupBox5.Location = new System.Drawing.Point(3, 3);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Size = new System.Drawing.Size(795, 286);
+            this.groupBox5.TabIndex = 58;
+            this.groupBox5.TabStop = false;
+            this.groupBox5.Text = "configure virtual image size";
+            // 
+            // txtVirtualImageSizeKB
+            // 
+            this.txtVirtualImageSizeKB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtVirtualImageSizeKB.ForeColor = System.Drawing.Color.Black;
+            this.txtVirtualImageSizeKB.Location = new System.Drawing.Point(273, 104);
+            this.txtVirtualImageSizeKB.MaxLength = 0;
+            this.txtVirtualImageSizeKB.Name = "txtVirtualImageSizeKB";
+            this.txtVirtualImageSizeKB.Size = new System.Drawing.Size(516, 44);
+            this.txtVirtualImageSizeKB.TabIndex = 56;
+            this.txtVirtualImageSizeKB.Text = "0";
+            // 
+            // radioVirtualImageSizeKB
+            // 
+            this.radioVirtualImageSizeKB.AutoSize = true;
+            this.radioVirtualImageSizeKB.Location = new System.Drawing.Point(30, 115);
+            this.radioVirtualImageSizeKB.Name = "radioVirtualImageSizeKB";
+            this.radioVirtualImageSizeKB.Size = new System.Drawing.Size(149, 28);
+            this.radioVirtualImageSizeKB.TabIndex = 55;
+            this.radioVirtualImageSizeKB.Text = "use this option";
+            this.radioVirtualImageSizeKB.UseVisualStyleBackColor = true;
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label8.Location = new System.Drawing.Point(25, 87);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(157, 25);
+            this.label8.TabIndex = 54;
+            this.label8.Text = "size (kilo byte):";
+            // 
+            // txtVirtualImageSizeGB
+            // 
+            this.txtVirtualImageSizeGB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtVirtualImageSizeGB.ForeColor = System.Drawing.Color.Black;
+            this.txtVirtualImageSizeGB.Location = new System.Drawing.Point(273, 222);
+            this.txtVirtualImageSizeGB.MaxLength = 0;
+            this.txtVirtualImageSizeGB.Name = "txtVirtualImageSizeGB";
+            this.txtVirtualImageSizeGB.Size = new System.Drawing.Size(516, 44);
+            this.txtVirtualImageSizeGB.TabIndex = 53;
+            this.txtVirtualImageSizeGB.Text = "0";
+            // 
+            // radioVirtualImageSizeGB
+            // 
+            this.radioVirtualImageSizeGB.AutoSize = true;
+            this.radioVirtualImageSizeGB.Location = new System.Drawing.Point(30, 233);
+            this.radioVirtualImageSizeGB.Name = "radioVirtualImageSizeGB";
+            this.radioVirtualImageSizeGB.Size = new System.Drawing.Size(149, 28);
+            this.radioVirtualImageSizeGB.TabIndex = 52;
+            this.radioVirtualImageSizeGB.Text = "use this option";
+            this.radioVirtualImageSizeGB.UseVisualStyleBackColor = true;
+            // 
+            // label15
+            // 
+            this.label15.AutoSize = true;
+            this.label15.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label15.Location = new System.Drawing.Point(25, 205);
+            this.label15.Name = "label15";
+            this.label15.Size = new System.Drawing.Size(165, 25);
+            this.label15.TabIndex = 51;
+            this.label15.Text = "size (giga byte):";
+            // 
+            // txtVirtualImageSizeMB
+            // 
+            this.txtVirtualImageSizeMB.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtVirtualImageSizeMB.ForeColor = System.Drawing.Color.Black;
+            this.txtVirtualImageSizeMB.Location = new System.Drawing.Point(273, 163);
+            this.txtVirtualImageSizeMB.MaxLength = 0;
+            this.txtVirtualImageSizeMB.Name = "txtVirtualImageSizeMB";
+            this.txtVirtualImageSizeMB.Size = new System.Drawing.Size(516, 44);
+            this.txtVirtualImageSizeMB.TabIndex = 50;
+            this.txtVirtualImageSizeMB.Text = "0";
+            // 
+            // radioVirtualImageSizeMB
+            // 
+            this.radioVirtualImageSizeMB.AutoSize = true;
+            this.radioVirtualImageSizeMB.Location = new System.Drawing.Point(30, 174);
+            this.radioVirtualImageSizeMB.Name = "radioVirtualImageSizeMB";
+            this.radioVirtualImageSizeMB.Size = new System.Drawing.Size(149, 28);
+            this.radioVirtualImageSizeMB.TabIndex = 49;
+            this.radioVirtualImageSizeMB.Text = "use this option";
+            this.radioVirtualImageSizeMB.UseVisualStyleBackColor = true;
+            // 
+            // label16
+            // 
+            this.label16.AutoSize = true;
+            this.label16.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label16.Location = new System.Drawing.Point(25, 146);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(177, 25);
+            this.label16.TabIndex = 48;
+            this.label16.Text = "size (mega byte):";
+            // 
+            // radioVirtualImageSizeByte
+            // 
+            this.radioVirtualImageSizeByte.AutoSize = true;
+            this.radioVirtualImageSizeByte.Checked = true;
+            this.radioVirtualImageSizeByte.Location = new System.Drawing.Point(30, 56);
+            this.radioVirtualImageSizeByte.Name = "radioVirtualImageSizeByte";
+            this.radioVirtualImageSizeByte.Size = new System.Drawing.Size(149, 28);
+            this.radioVirtualImageSizeByte.TabIndex = 46;
+            this.radioVirtualImageSizeByte.TabStop = true;
+            this.radioVirtualImageSizeByte.Text = "use this option";
+            this.radioVirtualImageSizeByte.UseVisualStyleBackColor = true;
+            // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label18.Location = new System.Drawing.Point(25, 28);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(118, 25);
+            this.label18.TabIndex = 43;
+            this.label18.Text = "size (byte):";
+            // 
+            // txtVirtualImageSizeByte
+            // 
+            this.txtVirtualImageSizeByte.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtVirtualImageSizeByte.ForeColor = System.Drawing.Color.Black;
+            this.txtVirtualImageSizeByte.Location = new System.Drawing.Point(273, 45);
+            this.txtVirtualImageSizeByte.MaxLength = 0;
+            this.txtVirtualImageSizeByte.Name = "txtVirtualImageSizeByte";
+            this.txtVirtualImageSizeByte.Size = new System.Drawing.Size(516, 44);
+            this.txtVirtualImageSizeByte.TabIndex = 42;
+            this.txtVirtualImageSizeByte.Text = "0";
+            // 
+            // tabPage5
+            // 
+            this.tabPage5.BackColor = System.Drawing.Color.Khaki;
+            this.tabPage5.Controls.Add(this.chkLiveVHDLockWriteAccess);
+            this.tabPage5.Controls.Add(this.label14);
+            this.tabPage5.Location = new System.Drawing.Point(4, 33);
+            this.tabPage5.Name = "tabPage5";
+            this.tabPage5.Size = new System.Drawing.Size(812, 513);
+            this.tabPage5.TabIndex = 3;
+            this.tabPage5.Text = "live config";
             // 
             // chkLiveVHDLockWriteAccess
             // 
@@ -646,18 +1007,6 @@ namespace FilediskProxyNet
             // 
             this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
             // 
-            // cmdClose
-            // 
-            this.cmdClose.BackColor = System.Drawing.Color.White;
-            this.cmdClose.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.cmdClose.Location = new System.Drawing.Point(664, 123);
-            this.cmdClose.Name = "cmdClose";
-            this.cmdClose.Size = new System.Drawing.Size(130, 30);
-            this.cmdClose.TabIndex = 62;
-            this.cmdClose.Text = "exit...";
-            this.cmdClose.UseVisualStyleBackColor = false;
-            this.cmdClose.Click += new System.EventHandler(this.cmdClose_Click);
-            // 
             // FormRoot
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -686,7 +1035,13 @@ namespace FilediskProxyNet
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.tabPage3.ResumeLayout(false);
-            this.tabPage3.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
+            this.tabPage4.ResumeLayout(false);
+            this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
+            this.tabPage5.ResumeLayout(false);
+            this.tabPage5.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -725,7 +1080,7 @@ namespace FilediskProxyNet
         private System.Windows.Forms.RadioButton radioUseSizeMB;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox txtConfigureVaultSizeMB;
-        private System.Windows.Forms.TabPage tabPage3;
+        private System.Windows.Forms.TabPage tabPage5;
         private System.Windows.Forms.CheckBox chkLiveVHDLockWriteAccess;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.SaveFileDialog sfdVaultFile;
@@ -741,6 +1096,34 @@ namespace FilediskProxyNet
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.TextBox txtPort;
         private System.Windows.Forms.Button cmdClose;
+        private System.Windows.Forms.TabPage tabPage3;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.TextBox txtOffsetMB;
+        private System.Windows.Forms.RadioButton radioOffsetMB;
+        private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.RadioButton radioOffsetByte;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.TextBox txtOffsetByte;
+        private System.Windows.Forms.TextBox txtOffsetGB;
+        private System.Windows.Forms.RadioButton radioOffsetGB;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.TextBox txtOffsetKB;
+        private System.Windows.Forms.RadioButton radioOffsetKB;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.TabPage tabPage4;
+        private System.Windows.Forms.GroupBox groupBox5;
+        private System.Windows.Forms.TextBox txtVirtualImageSizeKB;
+        private System.Windows.Forms.RadioButton radioVirtualImageSizeKB;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.TextBox txtVirtualImageSizeGB;
+        private System.Windows.Forms.RadioButton radioVirtualImageSizeGB;
+        private System.Windows.Forms.Label label15;
+        private System.Windows.Forms.TextBox txtVirtualImageSizeMB;
+        private System.Windows.Forms.RadioButton radioVirtualImageSizeMB;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.RadioButton radioVirtualImageSizeByte;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.TextBox txtVirtualImageSizeByte;
     }
 }
 

@@ -47,8 +47,9 @@ namespace FilediskProxyNet
         public String drivePath = "";
         public String drivePathComplete = "";
         public byte[] header = null;
-        public long file_size = 0;
+        public long virtual_image_size = 0;
         public long file_size_true = 0;
+        public long offset = 0;
         public Deveel.Math.BigDecimal totalDataRead_BigDecimal = 0;
         public Deveel.Math.BigDecimal totalDataWrite_BigDecimal = 0;
         public long bandwidthRead = 0, bandwidthWrite = 0;
