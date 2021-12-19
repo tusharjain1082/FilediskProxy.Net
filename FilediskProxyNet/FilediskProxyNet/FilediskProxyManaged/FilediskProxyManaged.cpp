@@ -13,11 +13,11 @@ namespace FilediskProxyManaged {
         this->_nativePtr = new FilediskProxyNative::FilediskProxyNative();
     }
 
-    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t% ctxOut)
+    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut)
     {
         // Initialize Software AES Framework for the CBC mode
         int64_t ctx = 0;
-        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, useShm, useSocket, port, ctx);
+        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, useShm, useSocket, readOnlyDisk, port, ctx);
         ctxOut = ctx;
         return result;
     }
@@ -25,6 +25,12 @@ namespace FilediskProxyManaged {
     BOOL FilediskProxyManaged::delete_ctx(int64_t ctxref)
     {
         return this->_nativePtr->delete_ctx(ctxref);
+    }
+
+    // set/reset write access to the virtual disk drive
+    int FilediskProxyManaged::setWriteAccess(int64_t ctxref, BOOL set)
+    {
+        return this->_nativePtr->setWriteAccess(ctxref, set);
     }
 
     // set/reset Event
@@ -84,6 +90,11 @@ namespace FilediskProxyManaged {
     void FilediskProxyManaged::NotifyWindows(int64_t ctxref, BOOL DriveAdded)
     {
         this->_nativePtr->NotifyWindows(ctxref, DriveAdded);
+    }
+
+    void FilediskProxyManaged::NotifyWindowsAtributesChanged(int64_t ctxref)
+    {
+        this->_nativePtr->NotifyWindowsAtributesChanged(ctxref);
     }
 
     uint32_t FilediskProxyManaged::WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds)

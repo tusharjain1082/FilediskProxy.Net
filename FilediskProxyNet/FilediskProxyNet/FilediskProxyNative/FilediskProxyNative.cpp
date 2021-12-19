@@ -21,6 +21,68 @@ namespace FilediskProxyNative
 
     }
 
+
+    int FilediskProxyNative::setWriteAccess(int64_t ctxref, BOOL set)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        DWORD BytesReturned;
+        int DeviceNumber = ctx->DeviceNumber;
+
+        FILE_LOG(linfo) << "setWriteAccess method started";
+
+        char link[256];
+        memset(link, 0, 256);
+        sprintf_s(link, 256, "%s", BASE_DEVICE_LINK_NAME_APP);
+
+
+        // open the base device object 0
+        HANDLE Device = CreateFileA(
+            link,                      // lpFileName
+            GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
+            FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+            NULL,                               // lpSecurityAttributes
+            OPEN_EXISTING,                      // dwCreationDistribution
+            0,                                  // dwFlagsAndAttributes
+            NULL                                // hTemplateFile
+        );
+        if (Device == INVALID_HANDLE_VALUE)
+        {
+            // unable to open base device 0 object to query available device.
+            FILE_LOG(linfo) << "setWriteAccess->CreateFileA method failure.";
+            return -1;
+        }
+
+        BASE_DEVICE_QUERY* query = new BASE_DEVICE_QUERY();
+        query->DeviceNumber = DeviceNumber;
+        query->ReadOnly = (BOOLEAN)set;
+        FILE_LOG(linfo) << ((set) ? "setWriteAccess::true" : "setWriteAccess::false");
+
+        // success, now query the device 0 and set/unset the attribute/config
+        if (!DeviceIoControl(
+            Device,
+            IOCTL_LOCK_WRITE_ACCESS_DISK_DEVICE,
+            (LPVOID)query,
+            sizeof(BASE_DEVICE_QUERY),
+            (LPVOID)query,
+            sizeof(BASE_DEVICE_QUERY),
+            &BytesReturned,
+            NULL
+        ))
+        {
+            // error
+            FILE_LOG(linfo) << "setWriteAccess->DeviceIoControl:IOCTL_LOCK_WRITE_ACCESS_DISK_DEVICE failure";
+            delete query;
+            CloseHandle(Device);
+            return -1;
+        }
+
+        // success
+        FILE_LOG(linfo) << "setWriteAccess method completed successfully.";
+        CloseHandle(Device);
+        delete query;
+        return 1;
+    }
+
     int FilediskProxyNative::deregister_file(int64_t ctxref)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
@@ -226,7 +288,7 @@ namespace FilediskProxyNative
 
 
     // initialize new session context and initialize everything including kernel driver handles and shared memory
-    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t& ctxOut)
+    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut)
     {
 
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started";
@@ -239,6 +301,7 @@ namespace FilediskProxyNative
         ctx->useSocket = ctx->fileConfig->useSocket = useSocket;
         std::sprintf(ctx->port, "%u", port);
         ctx->lport = ctx->fileConfig->lport = port;
+        ctx->readOnlyDisk = readOnlyDisk;
 
         if (!FindInitializeAvailableDevice((int64_t)ctx))
         {
@@ -303,6 +366,27 @@ namespace FilediskProxyNative
         delete[] DriveName;
 
         FILE_LOG(linfo) << "FilediskProxyNative::NotifyWindows completed successfully";
+    }
+
+    // notifies the windows about attributes change
+    void FilediskProxyNative::NotifyWindowsAtributesChanged(int64_t ctxref)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        FILE_LOG(linfo) << "FilediskProxyNative::NotifyWindowsAtributesChanged started";
+
+        // alert windows for the new drive path.
+        char link[256];
+        char driveNameFormat[] = "%s:\\";
+        memset(link, 0, 256);
+        sprintf_s(link, 256, driveNameFormat, &ctx->DriveLetter);
+        WCHAR* DriveName = commonMethods::ConvertCharToUnicode(link, 256);
+
+        SHChangeNotify(SHCNE_ALLEVENTS, SHCNF_PATH, DriveName, NULL);
+        SHChangeNotify(SHCNE_ATTRIBUTES, SHCNF_PATH, DriveName, NULL);        
+        delete[] DriveName;
+
+        FILE_LOG(linfo) << "FilediskProxyNative::NotifyWindowsAtributesChanged completed successfully";
     }
 
     // contacts the base device 0 and requests available device number
@@ -467,7 +551,7 @@ namespace FilediskProxyNative
         ctx->DeviceNumber = DeviceNumber;
         ctx->Device = Device;
         ctx->fileConfig->DeviceNumber = DeviceNumber;
-
+        ctx->fileConfig->ReadOnly = (BOOLEAN)ctx->readOnlyDisk;
         
         // now finally register the file
         if (!DeviceIoControl(

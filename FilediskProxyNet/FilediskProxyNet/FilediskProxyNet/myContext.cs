@@ -53,7 +53,7 @@ namespace FilediskProxyNet
         public Deveel.Math.BigDecimal totalDataRead_BigDecimal = 0;
         public Deveel.Math.BigDecimal totalDataWrite_BigDecimal = 0;
         public long bandwidthRead = 0, bandwidthWrite = 0;
-        public bool readOnlyVHD = false;
+        public int readOnlyVHD = 0;
         public bool liveLockVHDWriteAccess = false;
         public bool newVHDFile = false;
         public FilediskProxyManaged.FilediskProxyManaged fdpObject;

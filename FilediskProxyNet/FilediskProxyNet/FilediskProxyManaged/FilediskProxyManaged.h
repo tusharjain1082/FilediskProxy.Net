@@ -59,8 +59,9 @@ namespace FilediskProxyManaged {
 
 
 
-		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t% ctxOut);
+		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut);
 		BOOL delete_ctx(int64_t ctxref);
+		int setWriteAccess(int64_t ctxref, BOOL set);
 		void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
 		void SetEventProxyIdle(int64_t ctxref, BOOL set);
 		void SetEventRequestComplete(int64_t ctxref, BOOL set);
@@ -72,6 +73,7 @@ namespace FilediskProxyManaged {
 		void PulseEventShutdown(int64_t ctxref);
 		void PulseEventShutdownComplete(int64_t ctxref);
 		void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
+		void NotifyWindowsAtributesChanged(int64_t ctxref);
 		uint32_t WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
 		uint32_t WaitEventRequestComplete(int64_t ctxref, DWORD miliSeconds);

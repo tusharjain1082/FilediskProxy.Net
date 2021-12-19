@@ -975,6 +975,7 @@ namespace FilediskProxyNet
             this.chkLiveVHDLockWriteAccess.TabIndex = 33;
             this.chkLiveVHDLockWriteAccess.Text = "check to lock write-access to the VHD";
             this.chkLiveVHDLockWriteAccess.UseVisualStyleBackColor = true;
+            this.chkLiveVHDLockWriteAccess.CheckedChanged += new System.EventHandler(this.chkLiveVHDLockWriteAccess_CheckedChanged);
             // 
             // label14
             // 

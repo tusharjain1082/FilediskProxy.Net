@@ -314,7 +314,7 @@ namespace FilediskProxyNet
             filehandle.virtual_image_size = newVirtualSize;
             filehandle.offset = newOffset;
             filehandle.newVHDFile = newVHDFile;
-            filehandle.readOnlyVHD = chkReadOnlyVHD.Checked;
+            filehandle.readOnlyVHD = ((chkReadOnlyVHD.Checked) ? 1 : 0);
             filehandle.drivePath = filehandle.driveletter[0] + @":";
             filehandle.drivePathComplete = String.Format(@"{0}:\", driveLetter);
 
@@ -378,6 +378,9 @@ namespace FilediskProxyNet
                 return;
             }
 
+            filehandle.liveLockVHDWriteAccess = chkLiveVHDLockWriteAccess.Checked = chkReadOnlyVHD.Checked;
+            chkLiveVHDLockWriteAccess.Enabled = ((chkReadOnlyVHD.Checked) ? false : true);
+
             this.filehandle = filehandle;
 
             // finally set the loaded vault file name
@@ -385,7 +388,7 @@ namespace FilediskProxyNet
 
             filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
 
-            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, port, ref ctxref);
+            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, filehandle.readOnlyVHD, port, ref ctxref);
             if (result != 0)
             {
                 filehandle.usePipe = usePipe;
@@ -429,6 +432,7 @@ namespace FilediskProxyNet
             // open the folder
             Thread.Sleep(2000);
             commonMethods1.openFolder(obj.drivePathComplete);
+            //filehandle.fdpObject.setWriteAccess(filehandle.ctx, filehandle.readOnlyVHD);
 
         }
 
@@ -521,10 +525,13 @@ namespace FilediskProxyNet
                     // driver request write through buffer into virtual disk file
                     filehandle.fdpObject.ReadSocket(filehandle.ctx, (long)filehandle.__buffer0, length);
                     CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
-                    filehandle.fs.Write(buffer, 0, (int)length);
-                    filehandle.fs.Flush();
-                    filehandle.totalDataWrite_BigDecimal += length;
-                    filehandle.bandwidthWrite += length;
+                    if (!filehandle.liveLockVHDWriteAccess)
+                    {
+                        filehandle.fs.Write(buffer, 0, (int)length);
+                        filehandle.fs.Flush();
+                        filehandle.totalDataWrite_BigDecimal += length;
+                        filehandle.bandwidthWrite += length;
+                    }
                 }
 
                 // set the proxy idle event for the client to unblock because we have processed the request.
@@ -639,10 +646,13 @@ namespace FilediskProxyNet
                     // driver request write through buffer into virtual disk file
                     filehandle.fdpObject.ReadPipe(filehandle.ctx, (long)filehandle.__buffer0, length);
                     CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
-                    filehandle.fs.Write(buffer, 0, (int)length);
-                    filehandle.fs.Flush();
-                    filehandle.totalDataWrite_BigDecimal += length;
-                    filehandle.bandwidthWrite += length;
+                    if (!filehandle.liveLockVHDWriteAccess)
+                    {
+                        filehandle.fs.Write(buffer, 0, (int)length);
+                        filehandle.fs.Flush();
+                        filehandle.totalDataWrite_BigDecimal += length;
+                        filehandle.bandwidthWrite += length;
+                    }
                 }
 
                 // Step 2: close the connection to client.
@@ -734,10 +744,13 @@ namespace FilediskProxyNet
                     // driver request write through buffer into virtual disk file
                     filehandle.fdpObject.GetSHMBuffer(filehandle.ctx, 0, length, (long)filehandle.__buffer0);
                     CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
-                    filehandle.fs.Write(buffer, 0, (int)length);
-                    filehandle.fs.Flush();
-                    filehandle.totalDataWrite_BigDecimal += length;
-                    filehandle.bandwidthWrite += length;
+                    if (!filehandle.liveLockVHDWriteAccess)
+                    {
+                        filehandle.fs.Write(buffer, 0, (int)length);
+                        filehandle.fs.Flush();
+                        filehandle.totalDataWrite_BigDecimal += length;
+                        filehandle.bandwidthWrite += length;
+                    }
                 }
                 else
                 {
@@ -917,6 +930,18 @@ namespace FilediskProxyNet
         private void txtConfigureVaultSizeMB_TextChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void chkLiveVHDLockWriteAccess_CheckedChanged(object sender, EventArgs e)
+        {
+            int set = ((chkLiveVHDLockWriteAccess.Checked) ? 1 : 0);
+
+            if (filehandle != null)
+            {
+                filehandle.liveLockVHDWriteAccess = chkLiveVHDLockWriteAccess.Checked;
+                filehandle.fdpObject.setWriteAccess(filehandle.ctx, set);
+                filehandle.fdpObject.NotifyWindowsAtributesChanged(filehandle.ctx);
+            }
         }
     }
 }

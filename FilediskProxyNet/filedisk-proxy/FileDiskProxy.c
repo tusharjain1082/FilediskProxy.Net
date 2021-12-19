@@ -654,6 +654,35 @@ FileDiskDeregisterFileFromDevice(
     return STATUS_SUCCESS; // STATUS_UNSUCCESSFUL;
 }
 
+NTSTATUS
+FileDiskSetWriteAccessFileDiskDevice(
+    IN PDRIVER_OBJECT DriverObject,
+    ULONG DeviceNumber,
+    BOOLEAN set
+)
+{
+    PDEVICE_OBJECT device_object;
+    PDEVICE_EXTENSION   device_extension;
+
+    PAGED_CODE();
+
+    device_object = DriverObject->DeviceObject;
+    while (device_object)
+    {
+        device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+        if (device_extension->device_number == DeviceNumber)
+        {
+            // device found by number. force lock write access
+            device_extension->read_only = set;
+            break;
+        }
+
+        device_object = device_object->NextDevice;
+    }
+    // no available device, so return error
+    return STATUS_SUCCESS; // STATUS_UNSUCCESSFUL;
+}
+
 
 PDEVICE_OBJECT
 FileDiskDeleteDevice(
@@ -836,7 +865,10 @@ FileDiskDeviceControl(
         io_stack->Parameters.DeviceIoControl.IoControlCode !=
         IOCTL_FINDAVAILABLEDEVICE &&
         io_stack->Parameters.DeviceIoControl.IoControlCode !=
-        IOCTL_DEREGISTER_FILE_FROM_DEVICE)
+        IOCTL_DEREGISTER_FILE_FROM_DEVICE &&
+        io_stack->Parameters.DeviceIoControl.IoControlCode !=
+        IOCTL_LOCK_WRITE_ACCESS_DISK_DEVICE
+        )
     {
         Irp->IoStatus.Status = STATUS_NO_MEDIA_IN_DEVICE;
         Irp->IoStatus.Information = 0;
@@ -865,6 +897,14 @@ FileDiskDeviceControl(
         FileDiskDeregisterFileFromDevice(DeviceObject->DriverObject, query->DeviceNumber);
         status = STATUS_SUCCESS;
         Irp->IoStatus.Information = sizeof(BASE_DEVICE_QUERY);
+        break;
+    }
+    case IOCTL_LOCK_WRITE_ACCESS_DISK_DEVICE:
+    {
+        PBASE_DEVICE_QUERY query = (PBASE_DEVICE_QUERY)Irp->AssociatedIrp.SystemBuffer;
+        FileDiskSetWriteAccessFileDiskDevice(DeviceObject->DriverObject, query->DeviceNumber, query->ReadOnly);
+        status = STATUS_SUCCESS;
+        Irp->IoStatus.Information = 0; // sizeof(BASE_DEVICE_QUERY);
         break;
     }
     case IOCTL_REGISTER_FILE:
@@ -2276,6 +2316,8 @@ FileDiskThread(
         {
             irp = CONTAINING_RECORD(request, IRP, Tail.Overlay.ListEntry);
 
+            io_stack = IoGetCurrentIrpStackLocation(irp);
+
             if (device_extension->terminate_thread)
             {
                 FileDiskClearQueue(device_object);
@@ -2317,6 +2359,18 @@ FileDiskThread(
                 KeSetEvent(device_extension->KeShutdownCompleteObj, 100, TRUE);
                 KeDelayExecutionThread(KernelMode, FALSE, &timeout);
                 irp->IoStatus.Status = STATUS_CANCELLED;// STATUS_SUCCESS;
+                irp->IoStatus.Information = 0;
+                IoCompleteRequest(
+                    irp,
+                    (CCHAR)(NT_SUCCESS(irp->IoStatus.Status) ?
+                        IO_DISK_INCREMENT : IO_NO_INCREMENT)
+                );
+                continue;
+            }
+
+            if (io_stack->MajorFunction == IRP_MJ_WRITE && device_extension->read_only)
+            {
+                irp->IoStatus.Status = STATUS_MEDIA_WRITE_PROTECTED;// STATUS_SUCCESS;
                 irp->IoStatus.Information = 0;
                 IoCompleteRequest(
                     irp,

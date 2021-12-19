@@ -300,9 +300,7 @@ namespace FilediskProxyNative {
         PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)&__requestBuffer;
         BOOL requestSet = FALSE;
 
-        const int prefix_size = 2;
-        char g_holding_buffer[1000];
-        int g_held_bytes = 0;
+        BOOL readOnlyDisk;
     };
 
     class FilediskProxyNative
@@ -329,9 +327,10 @@ namespace FilediskProxyNative {
         static BOOL FindInitializeAvailableDevice(int64_t ctxref);
         static int FindAvailableDevice();
         static int deregister_file(int64_t ctxref);
-        static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, ULONG port, OUT int64_t& ctxOut);
+        static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut);
         static BOOL delete_ctx(int64_t ctxref);
         static void delete_objects(int64_t ctxref);
+        static int setWriteAccess(int64_t ctxref, BOOL set);
 
         static void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
         static void SetEventProxyIdle(int64_t ctxref, BOOL set);
@@ -344,6 +343,7 @@ namespace FilediskProxyNative {
         static void PulseEventShutdown(int64_t ctxref);
         static void PulseEventShutdownComplete(int64_t ctxref);
         static void NotifyWindows(int64_t ctxref, BOOL DriveAdded);
+        static void NotifyWindowsAtributesChanged(int64_t ctxref);
         static DWORD WaitEventDriverRequestDataSet(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventProxyIdle(int64_t ctxref, DWORD miliSeconds);
         static DWORD WaitEventRequestComplete(int64_t ctxref, DWORD miliSeconds);
