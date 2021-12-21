@@ -28,7 +28,7 @@
 #define BASE_DEVICE_LINK_NAME   L"\\DosDevices\\FileDisk0"
 
 static const char BASE_DEVICE_LINK_NAME_APP[] = "\\\\.\\FileDisk0";
-
+static const char APP_LOG_FILENAME_FORMAT[] = "c:\\FileDiskProxyNativeLog-Device%u.txt";
 #define DEVICE_NAME_PREFIX	DEVICE_DIR_NAME	DEVICE_BASE_NAME
 #define DEVICE_OBJECT_SHM_NAME L"\\BaseNamedObjects\\FileDiskSHM"
 #define DEVICE_OBJECT_SHM_EVENT_REQUEST_DATA L"\\BaseNamedObjects\\FileDiskReqData"

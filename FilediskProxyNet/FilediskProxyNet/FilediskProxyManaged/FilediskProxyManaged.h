@@ -92,6 +92,7 @@ namespace FilediskProxyManaged {
 		void delete_objects(int64_t ctxref);
 
 		// sockets
+		BOOL CheckSocketPortFree(ULONG port);
 		BOOL Step1SocketGetRequest(int64_t ctxref, OUT uint64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite);
 		void ReadSocket(int64_t ctxref, int64_t outputBuffer, size_t length);
 		void WriteSocket(int64_t ctxref, int64_t inputBuffer, size_t length);

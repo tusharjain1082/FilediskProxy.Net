@@ -15,12 +15,22 @@ namespace FilediskProxyNative
 {
     FilediskProxyNative::FilediskProxyNative()
     {
-        FILELog::ReportingLevel() = ldebug3;
-        log_fd = fopen("c:\\FileDiskProxyNativeLog.txt", "w");
-        Output2FILE::Stream() = log_fd;
 
     }
 
+
+    void FilediskProxyNative::InitializeLogFile(int64_t ctxref, int DeviceNumber)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+        char link[256];
+        memset(link, 0, 256);
+        sprintf_s(link, 256, APP_LOG_FILENAME_FORMAT, DeviceNumber);
+
+        FILELog::ReportingLevel() = ldebug3;
+        ctx->log_fd = fopen(link, "w");
+        Output2FILE::Stream() = ctx->log_fd;
+
+    }
 
     int FilediskProxyNative::setWriteAccess(int64_t ctxref, BOOL set)
     {
@@ -142,27 +152,41 @@ namespace FilediskProxyNative
         return 1;
     }
 
+    // delete context's objects
     void FilediskProxyNative::delete_objects(int64_t ctxref)
     {
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
-        UnmapViewOfFile(ctx->shmMappedBuffer);
-        CloseHandle(ctx->shmHandle);
-        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: shm released";
+        if (ctx->useShm)
+        {
+            UnmapViewOfFile(ctx->shmMappedBuffer);
+            CloseHandle(ctx->shmHandle);
+            FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: shm released";
+        }
+ 
         CloseHandle(ctx->DriverRequestDataSet);
         CloseHandle(ctx->ProxyIdle);
         CloseHandle(ctx->RequestComplete);
         CloseHandle(ctx->Shutdown);
         CloseHandle(ctx->ShutdownComplete);
         FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: events released";
-        CloseHandle(ctx->pipe);
-        ctx->pipe = NULL;
-        FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: pipe deleted";
-        closesocket(ctx->ClientSocket);
-        closesocket(ctx->ListenSocket);
-        WSACleanup();
+
+        if (ctx->usePipe)
+        {
+            CloseHandle(ctx->pipe);
+            ctx->pipe = NULL;
+            FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: pipe deleted";
+        }
+
+        if (ctx->useSocket)
+        {
+            closesocket(ctx->ClientSocket);
+            closesocket(ctx->ListenSocket);
+            WSACleanup();
         FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: sockets deleted";
+        }
 
     }
+
     // delete the entire session context and all it's handles and configuration.
     BOOL FilediskProxyNative::delete_ctx(int64_t ctxref)
     {
@@ -291,7 +315,6 @@ namespace FilediskProxyNative
     BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut)
     {
 
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started";
         MYCONTEXTCONFIG* ctx = new MYCONTEXTCONFIG();
         ctx->DriveLetter = DriveLetter;
         ctx->fileConfig = new OPEN_FILE_INFORMATION();
@@ -303,12 +326,27 @@ namespace FilediskProxyNative
         ctx->lport = ctx->fileConfig->lport = port;
         ctx->readOnlyDisk = readOnlyDisk;
 
-        if (!FindInitializeAvailableDevice((int64_t)ctx))
+        // initialize basic configuration
+        int DeviceNumber = FindAvailableDevice();
+        if (DeviceNumber == -1)
         {
-            // error in binding and or connection to any available device. abort with error.
-            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice error. aborted.";
             return FALSE;
         }
+        ctx->DeviceNumber = DeviceNumber;
+
+        char devicenumtxt[8];
+        memset(devicenumtxt, 0, 8);
+        sprintf_s(devicenumtxt, 8, "%u", ctx->DeviceNumber);
+        InitializeLogFile((int64_t)ctx, ctx->DeviceNumber);
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started with discovered available device number:" << devicenumtxt;
+
+        if (!InitializeDevice((int64_t)ctx))
+        {
+            // error in binding and or connection to any available device. abort with error.
+            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->InitializeDevice error. aborted.";
+            return FALSE;
+        }
+
         if (!OpenKernelDriverEvents((int64_t)ctx))
         {
             // error in opening events, abort with error
@@ -316,25 +354,34 @@ namespace FilediskProxyNative
             return FALSE;
         }
 
-        if (!OpenSharedMemory((int64_t)ctx))
+        if (useShm)
         {
-            // error in opening events, abort with error
-            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->OpenSharedMemory error. aborted.";
-            return FALSE;
+            if (!OpenSharedMemory((int64_t)ctx))
+            {
+                // error in opening events, abort with error
+                FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->OpenSharedMemory error. aborted.";
+                return FALSE;
+            }
         }
 
-        if (!CreateIoPipe((int64_t)ctx))
+        if (usePipe)
         {
-            // error in opening events, abort with error
-            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateIoPipe error. aborted.";
-            return FALSE;
+            if (!CreateIoPipe((int64_t)ctx))
+            {
+                // error in opening events, abort with error
+                FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateIoPipe error. aborted.";
+                return FALSE;
+            }
         }
 
-        if (!CreateSocketServer((int64_t)ctx))
+        if (useSocket)
         {
-            // error in socket creation, abort with error
-            FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateSocketServer error. aborted.";
-            return FALSE;
+            if (!CreateSocketServer((int64_t)ctx))
+            {
+                // error in socket creation, abort with error
+                FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateSocketServer error. aborted.";
+                return FALSE;
+            }
         }
 
         // success
@@ -395,7 +442,6 @@ namespace FilediskProxyNative
         // initialize basic configuration
         int DeviceNumber = -1;
         DWORD BytesReturned;
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice started";
 
         char link[256];
         memset(link, 0, 256);
@@ -414,7 +460,6 @@ namespace FilediskProxyNative
         if (Device == INVALID_HANDLE_VALUE)
         {
             // unable to open base device 0 object to query available device.
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice->CreateFileA failure";
             return -1;
         }
 
@@ -434,37 +479,25 @@ namespace FilediskProxyNative
         ))
         {
             // no available device object, so return error
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice->DeviceIoControl:IOCTL_FINDAVAILABLEDEVICE failure";
             delete query;
             CloseHandle(Device);
             return -1;
         }
 
         // success, we found an available device number, so return it and complete.
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice completed successfully.";
         CloseHandle(Device);
         DeviceNumber = query->DeviceNumber;
         delete query;
         return DeviceNumber;
-
     }
 
     // find available device number
-    BOOL FilediskProxyNative::FindInitializeAvailableDevice(int64_t ctxref)
+    BOOL FilediskProxyNative::InitializeDevice(int64_t ctxref)
     {
         // todo: we need to open the device through the drive letter link
         DWORD BytesReturned;
 
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice started";
-
-        // initialize basic configuration
-        int DeviceNumber = FindAvailableDevice();
-        if (DeviceNumber == -1)
-        {
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice: no available device. aborted.";
-            return FALSE;
-        }
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->FindAvailableDevice: available device number: " << DeviceNumber;
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice started";
 
         MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
 
@@ -490,20 +523,20 @@ namespace FilediskProxyNative
         if (Device != INVALID_HANDLE_VALUE)
         {
             // drive letter is busy. abort with error.
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->CreateFileA error 1 = drive letter busy. aborted.";
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->CreateFileA error 1 = drive letter busy. aborted.";
             return FALSE;
         }
 
         // success. drive letter was unused. so take it and proceed.
         CloseHandle(Device);
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->CreateFileA success 1 = drive letter unused, so taking it.";
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->CreateFileA success 1 = drive letter unused, so taking it.";
 
         memset(link, 0, 256);
         sprintf_s(link, 256, "%s:", &ctx->DriveLetter);
         WCHAR* DriveNameAlphabet = commonMethods::ConvertCharToUnicode(link, 256);
 
         memset(link, 0, 256);
-        sprintf_s(link, 256, "%s%u", DEVICE_NAME_APP, DeviceNumber);
+        sprintf_s(link, 256, "%s%u", DEVICE_NAME_APP, ctx->DeviceNumber);
         WCHAR* DeviceLink = commonMethods::ConvertCharToUnicode(link, 256);
 
         if (!DefineDosDevice(
@@ -513,13 +546,13 @@ namespace FilediskProxyNative
         ))
         {
             // unable to define and bind device number link and the drive letter. so try out the next device number
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->DefineDosDevice error 2 at " << link;
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->DefineDosDevice error 2 at " << link;
             delete[] DeviceLink;
             delete[] DriveNameAlphabet;
             return FALSE;
         }
 
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->DefineDosDevice success 2 at " << link;
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->DefineDosDevice success 2 at " << link;
 
         // successfully binded device object with the drive letter
         // now finally open the connection to device object based on available device number
@@ -535,7 +568,7 @@ namespace FilediskProxyNative
         if (Device == INVALID_HANDLE_VALUE)
         {
             // unable to open device object with binding to the drive letter, continue with the next device number.
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->CreateFileA error 3 at " << link;
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->CreateFileA error 3 at " << link;
             DefineDosDevice(DDD_REMOVE_DEFINITION, DriveNameAlphabet, NULL);
             delete[] DeviceLink;
             delete[] DriveNameAlphabet;
@@ -543,14 +576,14 @@ namespace FilediskProxyNative
         }
 
         // success, set the configuration and end the loop
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->CreateFileA success 3 at " << link;
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->CreateFileA success 3 at " << link;
         delete[] DeviceLink;
         delete[] DriveNameAlphabet;
 
         // setup final configuration
-        ctx->DeviceNumber = DeviceNumber;
+        //ctx->DeviceNumber = DeviceNumber;
         ctx->Device = Device;
-        ctx->fileConfig->DeviceNumber = DeviceNumber;
+        ctx->fileConfig->DeviceNumber = ctx->DeviceNumber;
         ctx->fileConfig->ReadOnly = (BOOLEAN)ctx->readOnlyDisk;
         
         // now finally register the file
@@ -566,7 +599,7 @@ namespace FilediskProxyNative
         ))
         {
             // unable to register with the opened device object, abort with error.
-            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->DeviceIoControl:IOCTL_REGISTER_FILE error 4 at " << link;
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->DeviceIoControl:IOCTL_REGISTER_FILE error 4 at " << link;
             DefineDosDevice(DDD_REMOVE_DEFINITION, DriveNameAlphabet, NULL);
             CloseHandle(Device);
             return FALSE;
@@ -576,10 +609,10 @@ namespace FilediskProxyNative
         CloseHandle(Device);
 
         // successfully registered file with the driver, proceed and load the proxy server thread back in the C# Application.
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice->DeviceIoControl:IOCTL_REGISTER_FILE success 4 at " << link;
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice->DeviceIoControl:IOCTL_REGISTER_FILE success 4 at " << link;
 
         // success
-        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->FindInitializeAvailableDevice completed successfully.";
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeDevice completed successfully.";
         return TRUE;
     }
 
@@ -751,6 +784,65 @@ namespace FilediskProxyNative
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->CreateIoPipe completed successfully. server-pipe i/o pipe created.";
         return TRUE;
 
+    }
+
+    // checks if a socket port is free or is in use
+    BOOL FilediskProxyNative::CheckSocketPortFree(ULONG port)
+    {
+        SOCKET ListenSocket = INVALID_SOCKET;
+        WSADATA wsaData;
+        int iResult;
+
+        struct addrinfo* result = NULL;
+        struct addrinfo hints;
+
+        // Initialize Winsock
+        iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (iResult != 0) {
+            return FALSE;
+        }
+
+        ZeroMemory(&hints, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+        //        hints.ai_flags = AI_PASSIVE;
+
+                // port 1 - request
+        char portString[8];
+        std::sprintf(portString, "%u", port);
+
+                // Resolve the server address and port
+        iResult = getaddrinfo(NULL, portString, &hints, &result);
+        if (iResult != 0) {
+            WSACleanup();
+            return FALSE;
+        }
+
+
+        // Create a SOCKET for connecting to server
+        ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+        if (ListenSocket == INVALID_SOCKET) {
+            freeaddrinfo(result);
+            WSACleanup();
+            return FALSE;
+
+        }
+
+        // Setup the TCP listening socket
+        iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+        if (iResult == SOCKET_ERROR) {
+            freeaddrinfo(result);
+            closesocket(ListenSocket);
+            WSACleanup();
+            return FALSE;
+        }
+
+        // success, port was free
+        freeaddrinfo(result);
+        closesocket(ListenSocket);
+        WSACleanup();
+        return TRUE;
     }
 
     // create and initialize socket and port

@@ -372,6 +372,19 @@ namespace FilediskProxyNet
             }
 
             myContext filehandle = new myContext();
+            filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
+            if (useSocket == 1)
+            {
+                int portAvailable = filehandle.fdpObject.CheckSocketPortFree(port);
+                if (portAvailable == 0)
+                {
+                    // port not available. abort with error.
+                    filehandle.fdpObject.Dispose();
+                    MessageBox.Show("port not available for use. please retry with another port which is free. aborted", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+
             if (!initializeFileSchedule(newFile, filehandle, true))
             {
                 MessageBox.Show("critical error creating/loading file. aborted", "critical error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -385,8 +398,6 @@ namespace FilediskProxyNet
 
             // finally set the loaded vault file name
             txtContainerFile.Text = ofdVaultFile.FileName = filehandle.filename;
-
-            filehandle.fdpObject = new FilediskProxyManaged.FilediskProxyManaged();
 
             int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, filehandle.readOnlyVHD, port, ref ctxref);
             if (result != 0)

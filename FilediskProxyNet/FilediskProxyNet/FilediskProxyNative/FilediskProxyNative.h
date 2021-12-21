@@ -274,6 +274,8 @@ namespace FilediskProxyNative {
 //        uint8_t RoundKey[AES_keyExpSize];
   //      uint8_t Iv[AES_BLOCKLEN];
 
+        FILE* log_fd;
+
         UCHAR DriveLetter;
         HANDLE Device;
         ULONG DeviceNumber;
@@ -291,7 +293,7 @@ namespace FilediskProxyNative {
         HANDLE          pipe;
         BOOL            useShm;
         BOOL            useSocket;
-        char            port[32];
+        char            port[8];
         ULONG           lport;
         SOCKET ListenSocket = INVALID_SOCKET;
         SOCKET ClientSocket = INVALID_SOCKET;
@@ -317,14 +319,14 @@ namespace FilediskProxyNative {
 #pragma region "filedisk proxy context based primary methods"
 
 
-        FILE* log_fd;
 
-
+        static void InitializeLogFile(int64_t ctxref, int DeviceNumber);
         static BOOL OpenKernelDriverEvents(int64_t ctxref);
         static BOOL OpenSharedMemory(int64_t ctxref);
         static BOOL CreateIoPipe(int64_t ctxref);
         static BOOL CreateSocketServer(int64_t ctxref);
-        static BOOL FindInitializeAvailableDevice(int64_t ctxref);
+        static BOOL CheckSocketPortFree(ULONG port);
+        static BOOL InitializeDevice(int64_t ctxref);
         static int FindAvailableDevice();
         static int deregister_file(int64_t ctxref);
         static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut);

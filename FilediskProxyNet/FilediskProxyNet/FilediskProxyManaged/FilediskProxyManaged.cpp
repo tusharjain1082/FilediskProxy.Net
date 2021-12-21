@@ -192,6 +192,11 @@ namespace FilediskProxyManaged {
         this->_nativePtr->SetSHMBuffer(ctxref, byteOffset, length, (void*)inputBuffer);
     }
 
+    BOOL FilediskProxyManaged::CheckSocketPortFree(ULONG port)
+    {
+        return this->_nativePtr->CheckSocketPortFree(port);
+    }
+
     // sockets
     BOOL FilediskProxyManaged::Step1SocketGetRequest(int64_t ctxref, OUT uint64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite)
     {
