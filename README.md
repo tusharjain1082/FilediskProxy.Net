@@ -1,9 +1,11 @@
 # FilediskProxy.Net
-A very-very simple tutorial level and basic example in C++ and C# and .Net of a simple ordinary file backend based full fledged Virtual Disk Drive. A basic virtual disk kernel driver for learning. We have a user interface combined Server-Client Application written in C# .Net which binds with the driver to build a file backed Virtual Disk Drive. The C# .Net Application is the Core Proxy Server, and it uses the Driver to run a Virtual Disk Drive through it. Almost all necessary code is completed, so you can download and run it. All the code including the kernel driver is included in this repository.
+A very-very simple tutorial level and basic example in C++ and C# and .Net of a simple ordinary file backend based full fledged Virtual Disk Drive. A basic virtual disk kernel driver for learning. We have a user interface combined Server-Client Application written in C# .Net which binds with the driver to build a file backed Virtual Disk Drive. The C# .Net Application is the Core Proxy Server, and it uses the Driver to run a Virtual Disk Drive through it. All the code including the kernel driver is included in this repository.
 
-Please note that the work is in progress. Nessessary code has been completed. There might be bugs, so you may inform them to me or fix them yourself.
+The meaning of "Proxy" is for example an Oven which can not even bake breads of different kinds, but also cook or heat other "custom" things. "Proxy" means a Server which performs input and output of data, but relies only on the "custom" data provided by a backend core application. The Proxy Server does not own any data or file, so it relies on the "custom" data and file transmitted by the other application, so the owner of this "custom" data and file is the application, not the Proxy Server. Meaning a core application provides it's own file and data to the Proxy Server instead of the Proxy Server to have it's own data on it's own.
 
-there are 3 modes available in both the driver and the proxy application server. both software make use of them to run file based virtual disk drive. offcourse bugs may exist but fixable.
+All the nessessary code and the features have been completed. There might be bugs, so you may inform them to me or fix them yourself.
+
+there are 3 modes available in both the driver and the proxy application server. both software make use of them to run file based virtual disk drive. this is not a professional source code, offcourse bugs should exist but fixable.
 
 1. shared memory
 2. pipe
