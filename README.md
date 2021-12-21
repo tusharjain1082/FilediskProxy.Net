@@ -11,12 +11,13 @@ there are 3 modes available in both the driver and the proxy application server.
 
 please open the "filedisk-proxy-test" folder where you can find the binary executable files and test and use them.
 
-1. turn on the windows test signed drivers mode. then reboot is required.
-2. run the script install.cmd
-3. run the script start.cmd
-4. then FilediskProxyNet.exe.
-5. if everything is working OK, driver is installing and has started, then FilediskProxyNet.exe can run virtual disk through the driver.
-6. please note that you must run everything in Administrator account with Administrative previliges. or it won't work at all.
+1. firstly, please install Visual C++ 2015-2022 redistributable dependency file "VC_redist.x64.exe". This dependency is required to run C++ Native and Managed Code, or the source code won't run.
+2. turn on the windows test signed drivers mode. then reboot is required.
+3. run the script install.cmd
+4. run the script start.cmd
+5. then FilediskProxyNet.exe.
+6. if everything is working OK, driver is installing and has started, then FilediskProxyNet.exe can run virtual disk through the driver.
+7. please note that you must run everything in Administrator account with Administrative previliges. or it won't work at all.
 
 to compile the solution:
 1. use visual studio 2019 with latest sdk and wdk.
