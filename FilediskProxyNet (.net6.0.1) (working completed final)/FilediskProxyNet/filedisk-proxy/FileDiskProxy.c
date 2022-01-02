@@ -503,7 +503,7 @@ FileDiskCreateDevice(
 
     // TODO tushar: now initialize device number based log file
     device_extension->LogFileDevice = initLog(TEXT(LOG_FILE_NAME_PATH), Number);
-    Log(device_extension->LogFileDevice, "hello world");
+    //Log(device_extension->LogFileDevice, "hello world");
 
     status = PsCreateSystemThread(
         &thread_handle,
@@ -761,7 +761,7 @@ FileDiskDeleteDevice(
 #pragma prefast( suppress: 28175, "allowed in unload" )
     next_device_object = DeviceObject->NextDevice;
 
-    Log(device_extension->LogFileDevice, "Deleting this device object...");
+    //Log(device_extension->LogFileDevice, "Deleting this device object...");
     // finally delete the log file handle of the device
     freeLog(device_extension->LogFileDevice);
 
@@ -886,7 +886,7 @@ FileDiskDeviceControl(
         PBASE_DEVICE_QUERY query = (PBASE_DEVICE_QUERY)Irp->AssociatedIrp.SystemBuffer;
         int number = FileDiskFindFirstAvailableDevice(DeviceObject->DriverObject);
         query->DeviceNumber = number;
-        Log(device_extension->LogFileDevice, "FileDiskDeviceControl::IOCTL_FINDAVAILABLEDEVICE request completed.");
+        //Log(device_extension->LogFileDevice, "FileDiskDeviceControl::IOCTL_FINDAVAILABLEDEVICE request completed.");
         status = STATUS_SUCCESS;
         Irp->IoStatus.Information = sizeof(BASE_DEVICE_QUERY);
         break;
@@ -1671,9 +1671,9 @@ int Socket2Steps(IN PVOID Context, PIRP irp)
     // set signature
     device_extension->request->signature = DRIVER_SIGNATURE;
 
-    LARGE_INTEGER timeout = { 0,0 };
-    timeout.QuadPart = 100;
-    LARGE_INTEGER timeout2 = { 100 };// 0000 };
+    LARGE_INTEGER timeout1 = { 2000000 }; // 2 miliseconds //100;
+    LARGE_INTEGER timeout2 = { 10000000 }; // 10 miliseconds //  5000000 }; // 5 miliseconds // { 1000000 };
+    LARGE_INTEGER timeout3 = { 1000000 }; // 2 miliseconds //100;
 
 
     // phase 1: open pipe in spin lock loop or directly if no problem
@@ -1728,35 +1728,18 @@ int Socket2Steps(IN PVOID Context, PIRP irp)
     
 
     // proper synchronisation between all processing in both client and server for each and every procedure.
-    WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, NULL);
-    KeResetEvent(device_extension->KeProxyIdleObj);
-    KeSetEvent(device_extension->KeRequestCompleteObj, 1, TRUE);
-    KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
-
-    /*
-    PBYTE buffer = (PBYTE)system_buffer;
-    if (io_stack->MajorFunction == IRP_MJ_READ)
-    {
-        //sockResult = recv(device_extension->sock, system_buffer, io_stack->Parameters.Read.Length, 0);
-        ReadSocketComplete(device_extension->sock, buffer, io_stack->Parameters.Read.Length);
-//        Log(device_extension->LogFileDevice, "Socket2Steps->recv io completed. data received.\r\n");
-    }
-    else
-    {
-        sockResult = send(device_extension->sock, buffer, io_stack->Parameters.Write.Length, 0);
-  //      Log(device_extension->LogFileDevice, "Socket2Steps->send io completed. data sent.\r\n");
-    }
-    */
-
+    //WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, NULL);
+    //KeResetEvent(device_extension->KeProxyIdleObj);
+    //KeSetEvent(device_extension->KeRequestCompleteObj, 1, TRUE);
+    //KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
 
     // phase 4: wait for Proxy Application Server to process entire request and complete and then set the ProxyIdle Event.
-
 
     // we cannot use indefinite wait, so we use spin lock loop which is breakable by user's command
     while (TRUE)
     {
         // wait for proxy idle event to occur, meaning until the proxy app processes entire request and takes time and completes, then signals the event, we must wait.
-        WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, &timeout);// &timeout);
+        WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, &timeout2);// &timeout);
         if (WaitStatus == STATUS_SUCCESS)
         {
             //Log(device_extension->LogFileDevice, "Socket2Steps->KeWaitForSingleObject completed. proxy app set the event.\r\n");
@@ -1941,7 +1924,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
     ZwFlushBuffersFile(device_extension->pipe, &iostatus);
     if (status != STATUS_SUCCESS)
     {
-        Log(device_extension->LogFileDevice, "ZwWriteFile:request method failure...");
+        //Log(device_extension->LogFileDevice, "ZwWriteFile:request method failure...");
     }
 
     //Log(device_extension->LogFileDevice, "request written to pipe. success");
@@ -1957,7 +1940,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
         status = ZwReadFile(device_extension->pipe, NULL, NULL, NULL, &iostatus, system_buffer, device_extension->request->Length, NULL, NULL);
         if (status != STATUS_SUCCESS)
         {
-            Log(device_extension->LogFileDevice, "ZwReadFile:io method failure...");
+            //Log(device_extension->LogFileDevice, "ZwReadFile:io method failure...");
         }
         //      Log(device_extension->LogFileDevice, "fastPipeToBuffer: read from pipe to buffer success");
     }
@@ -1967,7 +1950,7 @@ int Pipe2Steps(IN PVOID Context, PIRP irp)
         ZwFlushBuffersFile(device_extension->pipe, &iostatus);
         if (status != STATUS_SUCCESS)
         {
-            Log(device_extension->LogFileDevice, "ZwWriteFile:io method failure...");
+            //Log(device_extension->LogFileDevice, "ZwWriteFile:io method failure...");
         }
         //fastBufferToPipe(system_buffer, device_extension->pipe, 0, device_extension->request->Length);
 //        Log(device_extension->LogFileDevice, "fastBufferToPipe: write buffer to pipe success");

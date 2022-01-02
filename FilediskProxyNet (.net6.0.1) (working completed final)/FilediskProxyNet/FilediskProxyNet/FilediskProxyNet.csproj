@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <BaseOutputPath>F:\prj\filedisk-proxy-test</BaseOutputPath>
+    <BaseOutputPath>G:\prj\filedisk-proxy-test\FilediskProxyNet-Net6.0</BaseOutputPath>
     <Platforms>AnyCPU;x64</Platforms>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>

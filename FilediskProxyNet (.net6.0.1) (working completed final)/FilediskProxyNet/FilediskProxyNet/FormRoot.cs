@@ -548,9 +548,9 @@ namespace FilediskProxyNet
 
                 // set the proxy idle event for the client to unblock because we have processed the request.
                 // then we must wait for the client to process and set the flag for us to unblock and only then proceed.
-                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
-                filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
-                filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 0);
+                //filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+                //filehandle.fdpObject.WaitEventRequestComplete(filehandle.ctx, myContext.INFINITE);
+                //filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 0);
 
 
 

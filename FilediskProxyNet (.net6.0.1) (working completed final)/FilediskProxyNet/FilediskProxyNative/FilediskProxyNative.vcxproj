@@ -82,7 +82,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\..\..\prj\filedisk-proxy-test\x64\Release\net6.0-windows</OutDir>
+    <OutDir>..\..\..\..\prj\filedisk-proxy-test\FilediskProxyNet-Net6.0\x64\Release\net6.0-windows</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
