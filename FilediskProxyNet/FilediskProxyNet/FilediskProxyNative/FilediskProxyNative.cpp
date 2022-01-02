@@ -7,7 +7,7 @@
 
 #include "FilediskProxyNative.h"
 #include "log.h"
-#include "..\..\filedisk-proxy\FileDiskShared.h"
+#include "..\filedisk-proxy\FileDiskShared.h"
 
 using namespace std;
 
@@ -806,7 +806,7 @@ namespace FilediskProxyNative
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
-        //        hints.ai_flags = AI_PASSIVE;
+        hints.ai_flags = AI_PASSIVE;
 
                 // port 1 - request
         char portString[8];
@@ -830,7 +830,7 @@ namespace FilediskProxyNative
         }
 
         // Setup the TCP listening socket
-        iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+        iResult = bind(ListenSocket, (SOCKADDR*)result->ai_addr, (int)result->ai_addrlen);
         if (iResult == SOCKET_ERROR) {
             freeaddrinfo(result);
             closesocket(ListenSocket);
@@ -869,7 +869,7 @@ namespace FilediskProxyNative
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = IPPROTO_TCP;
-//        hints.ai_flags = AI_PASSIVE;
+        hints.ai_flags = AI_PASSIVE;
 
         // port 1 - request
 

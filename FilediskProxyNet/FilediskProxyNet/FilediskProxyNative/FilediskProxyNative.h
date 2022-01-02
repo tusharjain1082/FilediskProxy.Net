@@ -36,7 +36,7 @@
 #include <stdint.h>
 #include <Shlobj.h>
 #include "log.h"
-#include "..\..\filedisk-proxy\FileDiskShared.h"
+#include "..\filedisk-proxy\FileDiskShared.h"
 
 using namespace std;
 

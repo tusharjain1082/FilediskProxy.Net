@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FilediskProxyNative", "File
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FilediskProxyManaged", "FilediskProxyManaged\FilediskProxyManaged.vcxproj", "{C0B28A84-0D60-4D27-8873-01FF9BF26E40}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "filedisk-proxy", "..\filedisk-proxy\filedisk-proxy.vcxproj", "{3FA6B524-925F-45EE-85C3-B7CA0522DE25}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "filedisk-proxy", "filedisk-proxy\filedisk-proxy.vcxproj", "{3FA6B524-925F-45EE-85C3-B7CA0522DE25}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
