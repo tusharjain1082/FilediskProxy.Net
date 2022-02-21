@@ -73,7 +73,41 @@ namespace FilediskProxyNet
             return true;
         }
 
-        public static FileStream CreateInitializeFile(String strPath, Int64 length, bool overwrite = true)
+        public static bool EraseFile(String strPath, Int64 length, Int64 iterations, bool deleteFile = false)
+        {
+            FileStream fs = null;
+            try
+            {
+                for (Int64 i = 0; i < iterations; i++)
+                {
+                    fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
+
+                    long sectors = length / 1048576;
+                    byte[] sector = new byte[1048576];
+
+                    for (long ctr = 0; ctr < sectors; ctr++)
+                    {
+                        fs.Seek(ctr * 1048576, SeekOrigin.Begin);
+                        fs.Write(sector, 0, 1048576);
+                        fs.Flush();
+                    }
+                    fs.Flush();
+                    fs.Close();
+                    fs.Dispose();
+                }
+
+                if (deleteFile)
+                    DeleteFile(strPath);            
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+        public static FileStream CreateInitializeFile(String strPath, Int64 length, bool overwrite = true, bool returnHandle = true)
         {
             FileStream fs = null;
             try
@@ -101,7 +135,18 @@ namespace FilediskProxyNet
             {
                 return null;
             }
-            return fs;
+
+            if (returnHandle)
+            {
+                return fs;
+            }
+            else
+            {
+                fs.Flush();
+                fs.Close();
+                fs.Dispose();
+                return null;
+            }
         }
 
         public static Boolean openFolder(String strFolderPath)

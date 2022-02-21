@@ -60,6 +60,9 @@ namespace FilediskProxyNet
             this.cmdLoadFile = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.cmdUseFile = new System.Windows.Forms.Button();
+            this.txtUseFile = new System.Windows.Forms.TextBox();
+            this.radioUseFile = new System.Windows.Forms.RadioButton();
             this.label4 = new System.Windows.Forms.Label();
             this.radioUseSocket = new System.Windows.Forms.RadioButton();
             this.txtPort = new System.Windows.Forms.TextBox();
@@ -107,6 +110,7 @@ namespace FilediskProxyNet
             this.ofdVaultFile = new System.Windows.Forms.OpenFileDialog();
             this.timerUpdateStatus = new System.Windows.Forms.Timer(this.components);
             this.timerCheckContainer1Status = new System.Windows.Forms.Timer(this.components);
+            this.sfdUseFile = new System.Windows.Forms.SaveFileDialog();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -493,6 +497,9 @@ namespace FilediskProxyNet
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.cmdUseFile);
+            this.groupBox2.Controls.Add(this.txtUseFile);
+            this.groupBox2.Controls.Add(this.radioUseFile);
             this.groupBox2.Controls.Add(this.label4);
             this.groupBox2.Controls.Add(this.radioUseSocket);
             this.groupBox2.Controls.Add(this.txtPort);
@@ -500,10 +507,47 @@ namespace FilediskProxyNet
             this.groupBox2.Controls.Add(this.radioUseSHM);
             this.groupBox2.Location = new System.Drawing.Point(3, 175);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(795, 180);
+            this.groupBox2.Size = new System.Drawing.Size(795, 220);
             this.groupBox2.TabIndex = 55;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "configure request i/o type";
+            // 
+            // cmdUseFile
+            // 
+            this.cmdUseFile.BackColor = System.Drawing.Color.White;
+            this.cmdUseFile.Enabled = false;
+            this.cmdUseFile.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cmdUseFile.Location = new System.Drawing.Point(138, 156);
+            this.cmdUseFile.Name = "cmdUseFile";
+            this.cmdUseFile.Size = new System.Drawing.Size(130, 30);
+            this.cmdUseFile.TabIndex = 63;
+            this.cmdUseFile.Text = "browse...";
+            this.cmdUseFile.UseVisualStyleBackColor = false;
+            this.cmdUseFile.Click += new System.EventHandler(this.cmdUseFile_Click);
+            // 
+            // txtUseFile
+            // 
+            this.txtUseFile.Enabled = false;
+            this.txtUseFile.Font = new System.Drawing.Font("Microsoft Sans Serif", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtUseFile.ForeColor = System.Drawing.Color.Black;
+            this.txtUseFile.Location = new System.Drawing.Point(274, 156);
+            this.txtUseFile.MaxLength = 0;
+            this.txtUseFile.Multiline = true;
+            this.txtUseFile.Name = "txtUseFile";
+            this.txtUseFile.ReadOnly = true;
+            this.txtUseFile.Size = new System.Drawing.Size(515, 58);
+            this.txtUseFile.TabIndex = 45;
+            // 
+            // radioUseFile
+            // 
+            this.radioUseFile.AutoSize = true;
+            this.radioUseFile.Location = new System.Drawing.Point(24, 156);
+            this.radioUseFile.Name = "radioUseFile";
+            this.radioUseFile.Size = new System.Drawing.Size(87, 28);
+            this.radioUseFile.TabIndex = 44;
+            this.radioUseFile.Text = "use file";
+            this.radioUseFile.UseVisualStyleBackColor = true;
+            this.radioUseFile.CheckedChanged += new System.EventHandler(this.radioUseFile_CheckedChanged);
             // 
             // label4
             // 
@@ -547,6 +591,7 @@ namespace FilediskProxyNet
             this.radioUsePipe.TabIndex = 41;
             this.radioUsePipe.Text = "use pipe";
             this.radioUsePipe.UseVisualStyleBackColor = true;
+            this.radioUsePipe.CheckedChanged += new System.EventHandler(this.radioUsePipe_CheckedChanged);
             // 
             // radioUseSHM
             // 
@@ -1008,10 +1053,16 @@ namespace FilediskProxyNet
             // 
             this.timerCheckContainer1Status.Tick += new System.EventHandler(this.timerCheckContainer1Status_Tick);
             // 
+            // sfdUseFile
+            // 
+            this.sfdUseFile.DefaultExt = "tmp";
+            this.sfdUseFile.Filter = "temporary files *.tmp|*.tmp";
+            this.sfdUseFile.Title = "save temporary file as";
+            // 
             // FormRoot
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = AutoScaleMode.None; //System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImage = global::FilediskProxyNet.Properties.Resources._1a4f7f15ace98f6aa610193e98e9e16d;
             this.ClientSize = new System.Drawing.Size(884, 611);
             this.Controls.Add(this.tabControl1);
@@ -1125,6 +1176,10 @@ namespace FilediskProxyNet
         private System.Windows.Forms.RadioButton radioVirtualImageSizeByte;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.TextBox txtVirtualImageSizeByte;
+        private System.Windows.Forms.RadioButton radioUseFile;
+        private System.Windows.Forms.TextBox txtUseFile;
+        private System.Windows.Forms.Button cmdUseFile;
+        private System.Windows.Forms.SaveFileDialog sfdUseFile;
     }
 }
 

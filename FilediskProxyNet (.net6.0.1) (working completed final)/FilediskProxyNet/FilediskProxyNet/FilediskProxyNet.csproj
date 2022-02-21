@@ -9,6 +9,7 @@
     <BaseOutputPath>G:\prj\filedisk-proxy-test\FilediskProxyNet-Net6.0</BaseOutputPath>
     <Platforms>AnyCPU;x64</Platforms>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

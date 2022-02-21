@@ -85,6 +85,9 @@ typedef struct _DEVICE_EXTENSION {
     HANDLE                      pipe;
     BOOL                        useShm;
     BOOL                        useSocket;
+    BOOL                        useFile;
+    CHAR                        useFileValue[512];
+    HANDLE                      useFileHandle;
     int                         sock;
     ULONG                       lport;
     PCONTEXT_REQUEST            request;
@@ -142,6 +145,8 @@ void WriteBufferToPipe(LPBYTE buffer, HANDLE pipe, size_t size);
 void fastBufferToPipe(LPVOID buffer, HANDLE pipe, size_t pos, size_t nBytes);
 NTSTATUS FileDiskForceCloseFile(IN PDEVICE_OBJECT DeviceObject);
 BOOL isEventSignalled(PKEVENT KeEvent);
+NTSTATUS openFileMode(PDEVICE_OBJECT device_object);
+NTSTATUS closeFileMode(PDEVICE_OBJECT device_object);
 
 NTSTATUS
 FileDiskDeregisterFileFromDevice(
@@ -1548,6 +1553,218 @@ VOID FileDiskClearQueue(IN PVOID Context)
 }
 
 
+int FileMode2Steps(IN PVOID Context, PIRP irp)
+{
+    PDEVICE_OBJECT      device_object;
+    PDEVICE_EXTENSION   device_extension;
+    PIO_STACK_LOCATION  io_stack;
+    NTSTATUS status;
+    device_object = (PDEVICE_OBJECT)Context;
+    NTSTATUS WaitStatus;
+    PUCHAR              system_buffer;
+
+    device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+
+    io_stack = IoGetCurrentIrpStackLocation(irp);
+
+    //Log(device_extension->LogFileDevice, "FileMode2Steps started...");
+
+    // file mode shares a single local user path trasmission file between both driver and user mode app for all interations.
+
+    // phase 1: prepare configuration
+    RtlZeroMemory(device_extension->request, REQUEST_BUFFER_SIZE);
+
+    // prepare and set the request in shared memory
+    if (io_stack->MajorFunction == IRP_MJ_READ)
+    {
+        system_buffer = (PUCHAR)MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority);
+        device_extension->request->MajorFunction = IRP_MJ_READ;
+        device_extension->request->ByteOffset = io_stack->Parameters.Read.ByteOffset.QuadPart;
+        device_extension->request->Length = io_stack->Parameters.Read.Length;
+    }
+    else
+    {
+        system_buffer = (PUCHAR)MmGetSystemAddressForMdlSafe(irp->MdlAddress, HighPagePriority | MdlMappingNoWrite);// NormalPagePriority);
+        device_extension->request->MajorFunction = IRP_MJ_WRITE;
+        device_extension->request->ByteOffset = io_stack->Parameters.Write.ByteOffset.QuadPart;
+        device_extension->request->Length = io_stack->Parameters.Write.Length;
+    }
+
+    // set signature
+    device_extension->request->signature = DRIVER_SIGNATURE;
+
+    LARGE_INTEGER timeout = { 0,0 };
+    timeout.QuadPart = 100;
+    LARGE_INTEGER timeout2 = { 0,0 };
+    timeout2.QuadPart = 100; // 1000000; // 1 millisecond
+
+    // phase 1: open the file mode
+
+    status = openFileMode(device_object);
+    if (!NT_SUCCESS(status))
+    {
+        Log(device_extension->LogFileDevice, "FileMode2Steps::openFileMode failure.");
+    }
+
+    // phase 2: directly write request buffer to file mode
+
+    // write request header
+    IO_STATUS_BLOCK iostatus;
+    LARGE_INTEGER byteOffset = { 0 };
+    byteOffset.LowPart = byteOffset.HighPart = 0;
+    status = ZwWriteFile(device_extension->useFileHandle, NULL, NULL, NULL, &iostatus, (PVOID)device_extension->request, REQUEST_BUFFER_SIZE + 1, &byteOffset, NULL); //original REQUEST_BUFFER_SIZE, NULL, NULL);
+    ZwFlushBuffersFile(device_extension->useFileHandle, &iostatus);
+    if (status != STATUS_SUCCESS)
+    {
+        Log(device_extension->LogFileDevice, "FileMode2Steps::ZwWriteFile::request method failure...");
+    }
+
+    // phase 3: direct file mode i/o
+    // configure
+    byteOffset.QuadPart = REQUEST_BUFFER_SIZE + 1;
+
+    // if write function, then write
+    // now write the windows's provided data to the file mode from where the app writes it to the virtual disk file
+    if (device_extension->request->MajorFunction == IRP_MJ_WRITE)
+    {
+        status = ZwWriteFile(device_extension->useFileHandle, NULL, NULL, NULL, &iostatus, system_buffer, device_extension->request->Length, &byteOffset, NULL);// &offsettmp, NULL);
+        ZwFlushBuffersFile(device_extension->useFileHandle, &iostatus);
+        if (status != STATUS_SUCCESS)
+        {
+            Log(device_extension->LogFileDevice, "FileMode2Steps::ZwWriteFile::io method failure...");
+        }
+    }
+
+    // set the data event for the proxy app server to unblock and process the request
+    KeSetEvent(device_extension->KeDriverRequestDataSetObj, 100, TRUE);
+    KeDelayExecutionThread(KernelMode, FALSE, &timeout);
+
+    // phase 3: direct file mode i/o
+    LARGE_INTEGER offsettmp = { 0,0 };
+    offsettmp.QuadPart = 0;
+    // if read requested, then read
+    if (device_extension->request->MajorFunction == IRP_MJ_READ)
+    {
+        // first wait until the app has set all data and sets the flag
+        WaitStatus = KeWaitForSingleObject(device_extension->KeRequestCompleteObj, UserRequest, UserMode, FALSE, NULL);
+        KeResetEvent(device_extension->KeRequestCompleteObj);
+        // app set the flag, so read the data
+        status = ZwReadFile(device_extension->useFileHandle, NULL, NULL, NULL, &iostatus, system_buffer, device_extension->request->Length, &byteOffset, NULL);
+        if (status != STATUS_SUCCESS)
+        {
+            Log(device_extension->LogFileDevice, "FileMode2Steps::ZwReadFile::io method failure...");
+        }
+    }
+
+    // close the file mode as the work has been completed    
+    closeFileMode(device_object);
+
+    // work completed here.
+
+    // phase 4: wait for Proxy Application Server to process entire request and complete and then set the ProxyIdle Event.
+
+    // we cannot use indefinite wait, so we use spin lock loop which is breakable by user's command
+    while (TRUE)
+    {
+        // wait for proxy idle event to occur, meaning until the proxy app processes entire request and takes time and completes, then signals the event, we must wait.
+        WaitStatus = KeWaitForSingleObject(device_extension->KeProxyIdleObj, UserRequest, UserMode, FALSE, &timeout);// &timeout);
+        if (WaitStatus == STATUS_SUCCESS)
+        {
+            // success, the proxy app set the event flag
+            KeResetEvent(device_extension->KeProxyIdleObj);
+
+            // delay for proper synchronisation of shared memory buffer and everything else in user mode and kernel mode
+            //KeDelayExecutionThread(KernelMode, FALSE, &timeout2);
+            break;
+        }
+        else if (WaitStatus == STATUS_TIMEOUT)
+        {
+            continue;
+        }
+        else
+        {
+            continue;
+        }
+    }
+
+    // success completed
+    //Log(device_extension->LogFileDevice, "FileMode2Steps completed successfully.");
+    return 1;
+}
+
+VOID FileDiskFileModeReadWrite(IN PVOID Context, PIRP irp)
+{
+    PDEVICE_OBJECT      device_object;
+    PDEVICE_EXTENSION   device_extension;
+    PLIST_ENTRY         request;
+    PIO_STACK_LOCATION  io_stack;
+    PUCHAR              system_buffer;
+    PUCHAR              buffer;
+
+    device_object = (PDEVICE_OBJECT)Context;
+
+    device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+
+    io_stack = IoGetCurrentIrpStackLocation(irp);
+
+    // TODO read and write pipe
+
+    int requestStatus;
+
+    switch (io_stack->MajorFunction)
+    {
+    case IRP_MJ_READ:
+
+        if ((io_stack->Parameters.Read.ByteOffset.QuadPart +
+            io_stack->Parameters.Read.Length) >
+            device_extension->file_size.QuadPart)
+        {
+            irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
+            irp->IoStatus.Information = 0;
+            break;
+        }
+
+        // request and file mode i/o
+        requestStatus = FileMode2Steps(Context, irp);
+        if (requestStatus == -1)
+            goto Completed;
+
+
+        // finally update current device's current Irp status
+        irp->IoStatus.Status = STATUS_SUCCESS;
+        irp->IoStatus.Information = io_stack->Parameters.Read.Length;
+        break;
+    case IRP_MJ_WRITE:
+
+        if ((io_stack->Parameters.Write.ByteOffset.QuadPart +
+            io_stack->Parameters.Write.Length) >
+            device_extension->file_size.QuadPart)
+        {
+            irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
+            irp->IoStatus.Information = 0;
+            break;
+        }
+
+        // request and file mode i/o
+        requestStatus = FileMode2Steps(Context, irp);
+        if (requestStatus == -1)
+            goto Completed;
+
+        // finally update current device's current Irp status
+        irp->IoStatus.Status = STATUS_SUCCESS;
+        irp->IoStatus.Information = io_stack->Parameters.Write.Length;
+        break;
+    default:
+        irp->IoStatus.Status = STATUS_DRIVER_INTERNAL_ERROR;
+    }
+Completed:
+    IoCompleteRequest(
+        irp,
+        (CCHAR)(NT_SUCCESS(irp->IoStatus.Status) ?
+            IO_DISK_INCREMENT : IO_NO_INCREMENT)
+    );
+}
+
 BOOL connectToSocket(IN PVOID Context)
 {
 
@@ -2376,6 +2593,10 @@ FileDiskThread(
             {
                 FileDiskSocketReadWrite(Context, irp);
             }
+            else if (device_extension->useFile)
+            {
+                FileDiskFileModeReadWrite(Context, irp);
+            }
 
         }
     }
@@ -2413,6 +2634,9 @@ FileDiskOpenFile(
     device_extension->useShm = open_file_information->useShm;
     device_extension->useSocket = open_file_information->useSocket;
     device_extension->lport = open_file_information->lport;
+
+    device_extension->useFile = open_file_information->useFile;
+    sprintf(device_extension->useFileValue, "%s", open_file_information->useFileValue);
 
     device_extension->file_name.Length = open_file_information->FileNameLength;
     device_extension->file_name.MaximumLength = open_file_information->FileNameLength;
@@ -2858,6 +3082,68 @@ void ReleaseSharedMemory(PDEVICE_OBJECT device_object)
     return TRUE;
 }
 
+NTSTATUS openFileMode(PDEVICE_OBJECT device_object)
+{
+    NTSTATUS status = STATUS_UNSUCCESSFUL;
+    PDEVICE_EXTENSION device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+    WCHAR symbolicNameBuffer[512];// = ExAllocatePoolWithTag(PagedPool, 1024, FILE_DISK_POOL_TAG);
+    CHAR ansibuffer[512];
+    CHAR text[512];
+
+    ANSI_STRING     ansi;
+    ansi.Length = 0;
+    ansi.MaximumLength = 512;
+    ansi.Buffer = (PCHAR)ansibuffer;
+    memset(ansibuffer, 0, 512);
+    memset(text, 0, 512);
+    sprintf_s(text, 512, "%s%s", BASELOCALPATH_DRIVER, device_extension->useFileValue);
+    RtlInitAnsiString(&ansi, &text);
+
+    UNICODE_STRING link = { 0 };
+    link.Length = 0;
+    link.MaximumLength = 512;
+    link.Buffer = (PWSTR)symbolicNameBuffer;
+    RtlAnsiStringToUnicodeString(&link, &ansi, FALSE);
+
+    OBJECT_ATTRIBUTES object_attributes;
+    IO_STATUS_BLOCK iostatus;
+
+    InitializeObjectAttributes(
+        &object_attributes,
+        &link,
+        OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+        NULL,
+        NULL);
+
+    status = ZwCreateFile(
+        &device_extension->useFileHandle, // File handle
+        GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
+        //GENERIC_ALL | SYNCHRONIZE,
+        //FILE_READ_DATA | FILE_WRITE_DATA, // | SYNCHRONIZE, // Desired access
+        //GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE,
+        &object_attributes, // Attributes
+        &iostatus, // IO Status Block
+        NULL, // Allocation size
+        FILE_ATTRIBUTE_NORMAL, // File attributes
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, // File share
+        FILE_OPEN, // Create disposition (must exist)
+        //FILE_WRITE_THROUGH | FILE_NO_INTERMEDIATE_BUFFERING | FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_ALERT,// Create options
+//        FILE_NO_INTERMEDIATE_BUFFERING | FILE_SYNCHRONOUS_IO_NONALERT | FILE_RANDOM_ACCESS | FILE_NON_DIRECTORY_FILE,
+        FILE_WRITE_THROUGH | FILE_SYNCHRONOUS_IO_NONALERT | FILE_RANDOM_ACCESS | FILE_NON_DIRECTORY_FILE,
+        NULL, // EA buffer
+        0); // EA size
+
+    return status;
+}
+
+
+NTSTATUS closeFileMode(PDEVICE_OBJECT device_object)
+{
+    PDEVICE_EXTENSION device_extension = (PDEVICE_EXTENSION)device_object->DeviceExtension;
+    NTSTATUS status = ZwClose(device_extension->useFileHandle);
+    device_extension->useFileHandle = NULL;
+    return status;
+}
 
 NTSTATUS openPipe(PDEVICE_OBJECT device_object)
 {

@@ -26,6 +26,7 @@
 #define DEVICE_DIR_NAME		L"\\Device\\FileDisk"
 #define BASE_DEVICE_NAME    L"\\Device\\FileDisk\\FileDisk0"
 #define BASE_DEVICE_LINK_NAME   L"\\DosDevices\\FileDisk0"
+static const char BASELOCALPATH_DRIVER[] = "\\DosDevices\\";
 
 static const char BASE_DEVICE_LINK_NAME_APP[] = "\\\\.\\FileDisk0";
 static const char APP_LOG_FILENAME_FORMAT[] = "c:\\FileDiskProxyNativeLog-Device%u.txt";
@@ -57,6 +58,7 @@ static const char USERMODEAPP_REQUESTCOMPLETEEVENT_NAME[] = "Global\\FileDiskRC"
 static const char USERMODEAPP_SHUTDOWNEVENT_NAME[] = "Global\\FileDiskShutdown";
 static const char USERMODEAPP_SHUTDOWNCOMPLETEEVENT_NAME[] = "Global\\FileDiskShutdownComplete";
 static const char USERMODEAPP_SHM_SEMAPHORE_NAME[] = "Global\\FileDiskSHMSync";
+
 
 //#define REQUESTPIPE_NAME_DRIVER L"\\??\\pipe\\FileDiskReqPipe"
 //static const char USERMODEAPP_REQUEST_PIPE_NAME[] = "\\\\.\\pipe\\FileDiskReqPipe";
@@ -92,6 +94,8 @@ typedef struct _OPEN_FILE_INFORMATION {
     ULONG           DeviceNumber;
     BOOL            usePipe;
     BOOL            useShm;
+    BOOL            useFile;
+    CHAR            useFileValue[512];
     BOOL            useSocket;
     ULONG           lport;
 } OPEN_FILE_INFORMATION, * POPEN_FILE_INFORMATION;
@@ -126,4 +130,5 @@ static const char SIGNATURE_HELLO[] = "HELLO";
 #define IOCTL_LOCK_WRITE_ACCESS_DISK_DEVICE  CTL_CODE(FILE_DEVICE_DISK, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS) 
 
 #define LOG_FILE_NAME_PATH L"\\DosDevices\\C:\\FileDiskProxyDevice"
+
 
