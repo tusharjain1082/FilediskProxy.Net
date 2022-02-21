@@ -14,7 +14,7 @@ Class FilediskProxyManaged.FilediskProxyManaged: AutoLayout, AnsiClass, Class, P
   Interfaces:
     System.IDisposable
   Methods:
-    init_ctx(Byte, UInt64, Int32, Int32, Int32, Int32, UInt32 IsLong, Int64&): PrivateScope, Public, HideBySig
+    init_ctx(Byte, UInt64, Int32, Int32, Int32, Int32, String, Int32, UInt32 IsLong, Int64&): PrivateScope, Public, HideBySig
     delete_ctx(Int64): PrivateScope, Public, HideBySig
     setWriteAccess(Int64, Int32): PrivateScope, Public, HideBySig
     SetEventDriverRequestDataSet(Int64, Int32): PrivateScope, Public, HideBySig
@@ -45,6 +45,9 @@ Class FilediskProxyManaged.FilediskProxyManaged: AutoLayout, AnsiClass, Class, P
     DisconnectPipe(Int64): PrivateScope, Public, HideBySig
     deregister_file(Int64): PrivateScope, Public, HideBySig
     delete_objects(Int64): PrivateScope, Public, HideBySig
+    GetFileModeHeader(Int64, Int64&, UInt32&, Byte&, UInt32&): PrivateScope, Public, HideBySig
+    ReadFileMode(Int64, Int64, UInt64): PrivateScope, Public, HideBySig
+    WriteFileMode(Int64, Int64, UInt64): PrivateScope, Public, HideBySig
     CheckSocketPortFree(UInt32 IsLong): PrivateScope, Public, HideBySig
     Step1SocketGetRequest(Int64, UInt64&, UInt32&, Byte&, UInt32&): PrivateScope, Public, HideBySig
     ReadSocket(Int64, Int64, UInt64): PrivateScope, Public, HideBySig
