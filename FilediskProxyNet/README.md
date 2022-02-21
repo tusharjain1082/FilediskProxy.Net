@@ -5,11 +5,12 @@ The meaning of "Proxy" is for example an Oven which can not even bake breads of 
 
 All the nessessary code and the features have been completed. There might be bugs, so you may inform them to me or fix them yourself.
 
-there are 3 modes available in both the driver and the proxy application server. both software make use of them to run file based virtual disk drive. this is not a professional source code, offcourse bugs should exist but fixable.
+there are 4 modes available in both the driver and the proxy application server. both software make use of them to run file based virtual disk drive. this is not a professional source code, offcourse bugs should exist but fixable.
 
 1. shared memory
 2. pipe
 3. winsock2
+4. file
 
 please open the "filedisk-proxy-test" folder where you can find the binary executable files and test and use them.
 

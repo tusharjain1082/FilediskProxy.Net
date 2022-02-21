@@ -297,6 +297,9 @@ namespace FilediskProxyNative {
         ULONG           lport;
         SOCKET ListenSocket = INVALID_SOCKET;
         SOCKET ClientSocket = INVALID_SOCKET;
+        BOOL            useFile;
+        char*           useFileValue;
+        HANDLE          useFileHandle;
 
         BYTE __requestBuffer[REQUEST_BUFFER_SIZE + 1];
         PCONTEXT_REQUEST request = (PCONTEXT_REQUEST)&__requestBuffer;
@@ -326,10 +329,11 @@ namespace FilediskProxyNative {
         static BOOL CreateIoPipe(int64_t ctxref);
         static BOOL CreateSocketServer(int64_t ctxref);
         static BOOL CheckSocketPortFree(ULONG port);
+        static BOOL InitializeFileMode(int64_t ctxref);
         static BOOL InitializeDevice(int64_t ctxref);
         static int FindAvailableDevice();
         static int deregister_file(int64_t ctxref);
-        static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut);
+        static BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL useFile, char* useFileValue, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut);
         static BOOL delete_ctx(int64_t ctxref);
         static void delete_objects(int64_t ctxref);
         static int setWriteAccess(int64_t ctxref, BOOL set);
@@ -360,6 +364,10 @@ namespace FilediskProxyNative {
         static void WritePipe(int64_t ctxref, void* inputBuffer, size_t length);
         static int ConnectPipe(int64_t ctxref);
         static int DisconnectPipe(int64_t ctxref);
+        static void GetFileModeHeader(int64_t ctxref, OUT int64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite);
+        static void ReadFileMode(int64_t ctxref, void* outputBuffer, size_t length);
+        static void WriteFileMode(int64_t ctxref, void* inputBuffer, size_t length);
+
 
         // sockets
         static BOOL Step1SocketGetRequest(int64_t ctxref, OUT uint64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite);

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "FilediskProxyManaged.h"
 
+
 using namespace System;
 using namespace std;
 
@@ -13,11 +14,14 @@ namespace FilediskProxyManaged {
         this->_nativePtr = new FilediskProxyNative::FilediskProxyNative();
     }
 
-    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut)
+    BOOL FilediskProxyManaged::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL useFile, String^ useFileValue, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut)
     {
+
         // Initialize Software AES Framework for the CBC mode
         int64_t ctx = 0;
-        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, useShm, useSocket, readOnlyDisk, port, ctx);
+        char useFileValueFinal[512];
+        sprintf(useFileValueFinal, "%s", useFileValue);
+        BOOL result = this->_nativePtr->init_ctx(DriveLetter, filesize, usePipe, useShm, useSocket, useFile, useFileValueFinal, readOnlyDisk, port, ctx);
         ctxOut = ctx;
         return result;
     }
@@ -119,6 +123,29 @@ namespace FilediskProxyManaged {
     int FilediskProxyManaged::isEventSignalled(HANDLE hEvent)
     {
         return this->_nativePtr->isEventSignalled(hEvent);
+    }
+
+    void FilediskProxyManaged::GetFileModeHeader(int64_t ctxref, OUT int64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite)
+    {
+        int64_t byteOffsettmp = 0;
+        DWORD lengthtmp = 0;
+        UCHAR functiontmp = 0;
+        DWORD totalbytesreadwritetmp = 0;
+        this->_nativePtr->GetFileModeHeader(ctxref, byteOffsettmp, lengthtmp, functiontmp, totalbytesreadwritetmp);
+        byteOffset = byteOffsettmp;
+        length = lengthtmp;
+        function = functiontmp;
+        totalBytesReadWrite = totalbytesreadwritetmp;
+    }
+
+    void FilediskProxyManaged::ReadFileMode(int64_t ctxref, int64_t outputBuffer, size_t length)
+    {
+        this->_nativePtr->ReadFileMode(ctxref, (void*)outputBuffer, length);
+    }
+
+    void FilediskProxyManaged::WriteFileMode(int64_t ctxref, int64_t inputBuffer, size_t length)
+    {
+        this->_nativePtr->WriteFileMode(ctxref, (void*)inputBuffer, length);
     }
 
     void FilediskProxyManaged::GetSHMHeader(int64_t ctxref, OUT int64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite)

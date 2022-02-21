@@ -185,6 +185,13 @@ namespace FilediskProxyNative
         FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: sockets deleted";
         }
 
+        if (ctx->useFile)
+        {
+            CloseHandle(ctx->useFileHandle);
+            ctx->useFileHandle = NULL;
+            FILE_LOG(linfo) << "FilediskProxyNative::delete_objects: file mode handle deleted";
+        }
+
     }
 
     // delete the entire session context and all it's handles and configuration.
@@ -312,7 +319,7 @@ namespace FilediskProxyNative
 
 
     // initialize new session context and initialize everything including kernel driver handles and shared memory
-    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut)
+    BOOL FilediskProxyNative::init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL useFile, char* useFileValue, BOOL readOnlyDisk, ULONG port, OUT int64_t& ctxOut)
     {
 
         MYCONTEXTCONFIG* ctx = new MYCONTEXTCONFIG();
@@ -322,6 +329,10 @@ namespace FilediskProxyNative
         ctx->usePipe = ctx->fileConfig->usePipe = usePipe;
         ctx->useShm = ctx->fileConfig->useShm = useShm;
         ctx->useSocket = ctx->fileConfig->useSocket = useSocket;
+        ctx->useFile = ctx->fileConfig->useFile = useFile;
+        ctx->useFileValue = useFileValue;
+        std::sprintf(ctx->fileConfig->useFileValue, "%s", ctx->useFileValue);
+
         std::sprintf(ctx->port, "%u", port);
         ctx->lport = ctx->fileConfig->lport = port;
         ctx->readOnlyDisk = readOnlyDisk;
@@ -339,6 +350,11 @@ namespace FilediskProxyNative
         sprintf_s(devicenumtxt, 8, "%u", ctx->DeviceNumber);
         InitializeLogFile((int64_t)ctx, ctx->DeviceNumber);
         FILE_LOG(linfo) << "FilediskProxyNative::init_ctx started with discovered available device number:" << devicenumtxt;
+
+        if (ctx->useFile == 1)
+        {
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->useFile option selected::local file is:: " << ctx->useFileValue;
+        }
 
         if (!InitializeDevice((int64_t)ctx))
         {
@@ -382,6 +398,16 @@ namespace FilediskProxyNative
                 FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->CreateSocketServer error. aborted.";
                 return FALSE;
             }
+        }
+
+        if (useFile)
+        {
+            if (!InitializeFileMode((int64_t)ctx))
+            {
+                // error in socket creation, abort with error
+                FILE_LOG(lerror) << "FilediskProxyNative::init_ctx->InitializeFileMode error. aborted.";
+                return FALSE;
+            }            
         }
 
         // success
@@ -913,6 +939,51 @@ namespace FilediskProxyNative
         return TRUE;
     }
 
+    // initialize open the temporary file mode
+    BOOL FilediskProxyNative::InitializeFileMode(int64_t ctxref)
+    {
+        // todo: we need to open the device through the drive letter link
+        DWORD BytesReturned;
+
+        // file mode shares a single local user path trasmission file between both driver and user mode app for all interations.
+
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeFileMode started";
+
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        // Setup the security attribute so it is open to anyone that enquires.
+        SECURITY_ATTRIBUTES sa;
+        SECURITY_DESCRIPTOR sd;
+        InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+        SetSecurityDescriptorDacl(&sd, TRUE, (PACL)NULL, FALSE);
+        sa.nLength = (DWORD)sizeof(SECURITY_ATTRIBUTES);
+        sa.lpSecurityDescriptor = (LPVOID)&sd;
+        sa.bInheritHandle = TRUE;
+
+        // find if this drive letter isn't in use, otherwise return with error.
+        HANDLE file = CreateFileA(
+            (LPCSTR)ctx->useFileValue,
+            GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            &sa,
+            OPEN_EXISTING,
+            FILE_FLAG_WRITE_THROUGH | FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+            NULL
+        );
+
+        if (file == INVALID_HANDLE_VALUE)
+        {
+            // drive letter is busy. abort with error.
+            FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeFileMode->CreateFileA file open error. aborted.";
+            return FALSE;
+        }
+
+        // success
+        ctx->useFileHandle = file;
+        FILE_LOG(linfo) << "FilediskProxyNative::init_ctx->InitializeFileMode completed successfully.";
+        return TRUE;
+    }
+
     // set/reset Event
     void FilediskProxyNative::PulseEventDriverRequestDataSet(int64_t ctxref)
     {
@@ -1046,6 +1117,55 @@ namespace FilediskProxyNative
             return -2;
         }
 
+    }
+
+    void FilediskProxyNative::GetFileModeHeader(int64_t ctxref, OUT int64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite)
+    {
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        // reset and clean the context configuration
+        memset(&ctx->__requestBuffer, 0, REQUEST_BUFFER_SIZE);
+        ctx->requestSet = false;
+
+        LARGE_INTEGER ptr = { 0 };
+        ptr.LowPart = ptr.HighPart = 0;             
+        LARGE_INTEGER newptr = { 0 };
+        SetFilePointerEx(ctx->useFileHandle, ptr, &newptr, FILE_BEGIN);
+
+        // success, now receive the request
+        BOOL result = ReadFile(ctx->useFileHandle, &ctx->__requestBuffer, REQUEST_BUFFER_SIZE + 1, &ctx->request->totalBytesReadWrite, NULL);
+        ctx->requestSet = true;
+
+        // set output destinations with received request
+        byteOffset = ctx->request->ByteOffset;
+        length = ctx->request->Length;
+        function = ctx->request->MajorFunction;
+        totalBytesReadWrite = ctx->request->totalBytesReadWrite;
+    }
+
+    void FilediskProxyNative::ReadFileMode(int64_t ctxref, void* outputBuffer, size_t length)
+    {
+        DWORD bytesDone;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        LARGE_INTEGER ptr = { REQUEST_BUFFER_SIZE + 1 };
+        LARGE_INTEGER newptr = { 0 };
+        SetFilePointerEx(ctx->useFileHandle, ptr, &newptr, FILE_BEGIN);
+
+        ReadFile(ctx->useFileHandle, outputBuffer, length, &bytesDone, NULL);
+    }
+
+    void FilediskProxyNative::WriteFileMode(int64_t ctxref, void* inputBuffer, size_t length)
+    {
+        DWORD bytesDone;
+        MYCONTEXTCONFIG* ctx = (MYCONTEXTCONFIG*)ctxref;
+
+        LARGE_INTEGER ptr = { REQUEST_BUFFER_SIZE + 1 };
+        LARGE_INTEGER newptr = { 0 };
+        SetFilePointerEx(ctx->useFileHandle, ptr, &newptr, FILE_BEGIN);
+
+        WriteFile(ctx->useFileHandle, inputBuffer, length, &bytesDone, NULL);
+        FlushFileBuffers(ctx->useFileHandle);
     }
 
     void FilediskProxyNative::GetSHMHeader(int64_t ctxref, OUT int64_t& byteOffset, OUT DWORD& length, OUT UCHAR& function, OUT DWORD& totalBytesReadWrite)

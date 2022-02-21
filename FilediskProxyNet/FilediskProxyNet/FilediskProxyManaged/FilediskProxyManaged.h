@@ -59,7 +59,7 @@ namespace FilediskProxyManaged {
 
 
 
-		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut);
+		BOOL init_ctx(UCHAR DriveLetter, size_t filesize, BOOL usePipe, BOOL useShm, BOOL useSocket, BOOL useFile, String^ useFileValue, BOOL readOnlyDisk, ULONG port, OUT int64_t% ctxOut);
 		BOOL delete_ctx(int64_t ctxref);
 		int setWriteAccess(int64_t ctxref, BOOL set);
 		void SetEventDriverRequestDataSet(int64_t ctxref, BOOL set);
@@ -90,6 +90,11 @@ namespace FilediskProxyManaged {
 		int DisconnectPipe(int64_t ctxref);
 		int deregister_file(int64_t ctxref);
 		void delete_objects(int64_t ctxref);
+
+		// file mode
+		void GetFileModeHeader(int64_t ctxref, OUT int64_t% byteOffset, OUT DWORD% length, OUT UCHAR% function, OUT DWORD% totalBytesReadWrite);
+		void ReadFileMode(int64_t ctxref, int64_t outputBuffer, size_t length);
+		void WriteFileMode(int64_t ctxref, int64_t inputBuffer, size_t length);
 
 		// sockets
 		BOOL CheckSocketPortFree(ULONG port);

@@ -353,6 +353,8 @@ namespace FilediskProxyNet
             int usePipe = 0;
             int useShm = 0;
             int useSocket = 0;
+            int useFile = 0;
+            String useFileValue = "";
 
             if (radioUsePipe.Checked)
                 usePipe = 1;
@@ -400,13 +402,35 @@ namespace FilediskProxyNet
             // finally set the loaded vault file name
             txtContainerFile.Text = ofdVaultFile.FileName = filehandle.filename;
 
-            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, filehandle.readOnlyVHD, port, ref ctxref);
+            // prepare use file option
+            if (radioUseFile.Checked)
+            {
+                useFile = 1;
+                useFileValue = txtUseFile.Text;
+                if (useFileValue.Length <= 0)
+                {
+                    MessageBox.Show("Error: Please select a valid file for use file option.", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // now load the file
+
+                // delete old file and create new file always
+                if (File.Exists(useFileValue))
+                    commonMethods1.DeleteFile(useFileValue);
+
+                commonMethods1.CreateInitializeFile(useFileValue, myContext.useFileSize, true, false);
+            }
+
+            int result = filehandle.fdpObject.init_ctx((byte)filehandle.driveletter[0], (ulong)filehandle.virtual_image_size, usePipe, useShm, useSocket, useFile, useFileValue, filehandle.readOnlyVHD, port, ref ctxref);
             if (result != 0)
             {
                 filehandle.usePipe = usePipe;
                 filehandle.useShm = useShm;
                 filehandle.useSocket = useSocket;
                 filehandle.port = port;
+                filehandle.useFile = useFile;
+                filehandle.useFileValue = useFileValue;
                 filehandle.ctx = ctxref;
                 myStopWatchRunningTime.Restart();
                 timerUpdateStatus.Enabled = false;
@@ -439,6 +463,10 @@ namespace FilediskProxyNet
             {
                 obj.myThread = new Thread(new ParameterizedThreadStart(ProxySocketServerThreadFunction));
             }
+            else if (obj.useFile == 1)
+            {
+                obj.myThread = new Thread(new ParameterizedThreadStart(ProxyFileServerThreadFunction));
+            }
             obj.myThread.Start(obj);
 
             // open the folder
@@ -446,6 +474,104 @@ namespace FilediskProxyNet
             commonMethods1.openFolder(obj.drivePathComplete);
             //filehandle.fdpObject.setWriteAccess(filehandle.ctx, filehandle.readOnlyVHD);
 
+        }
+
+        private void ProxyFileServerThreadFunction(Object obj)
+        {
+            myContext filehandle = (myContext)obj;
+
+            UInt32 WaitStatus;
+
+            // file mode shares a single local user path trasmission file between both driver and user mode app for all interations.
+
+            // initialize a buffer
+            byte[] buffer = new byte[myContext.ShmSize];
+
+            // notify windows of drive add
+            filehandle.fdpObject.NotifyWindows(filehandle.ctx, 1);
+
+            // phase 1 = infinite loop server and client
+            while (true)
+            {
+                // terminate if user set the termination flag
+                if (terminateProxy)
+                {
+                    filehandle.myThreadWaitHandle.Set();
+                    return;
+                }
+
+                // wait for driver event to occur
+                WaitStatus = filehandle.fdpObject.WaitEventDriverRequestDataSet(filehandle.ctx, 1000);
+                if (WaitStatus == myContext.WAIT_OBJECT_0)
+                {
+                    // success, the driver set the event flag
+                }
+                else if (WaitStatus == myContext.WAIT_TIMEOUT)
+                {
+                    // the driver did not set the event flag, so continue
+                    continue;
+                }
+                else
+                {
+                    // error or exception, continue
+                    continue;
+                }
+
+                // at this point, the driver has requested data i/o, so connect to it and process the request.
+
+                // unblock when the driver sets the event
+                // success, the driver set the event flag
+                // then process the driver's request here
+
+                // open and read file mode
+                Int64 offset = 0;
+                UInt32 length = 0;
+                byte function = 0;
+                UInt32 totalBytesReadWrite = 0;
+                filehandle.fdpObject.GetFileModeHeader(filehandle.ctx, ref offset, ref length, ref function, ref totalBytesReadWrite);
+
+                // prepare final offset which is virtual disk's physical offset in the file + the provided virtual offset
+                long finalOffset = filehandle.offset;
+                finalOffset += offset;
+
+                // set position in backend disk file
+                filehandle.fs.Seek(finalOffset, SeekOrigin.Begin);
+
+                if (function == myContext.IRP_MJ_WRITE)
+                {
+                    // driver request write through buffer into virtual disk file
+                    filehandle.fdpObject.ReadFileMode(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    CopyFromGlobalBuffer(filehandle.__buffer0, 0, buffer, 0, (int)length);
+                    if (!filehandle.liveLockVHDWriteAccess)
+                    {
+                        filehandle.fs.Write(buffer, 0, (int)length);
+                        filehandle.fs.Flush();
+                        filehandle.totalDataWrite_BigDecimal += length;
+                        filehandle.bandwidthWrite += length;
+                    }
+                }
+                else if (function == myContext.IRP_MJ_READ)
+                {
+                    // driver request read into buffer
+                    filehandle.fs.Read(buffer, 0, (int)length);
+                    CopyToGlobalBuffer(buffer, 0, filehandle.__buffer0, 0, (int)length);
+                    filehandle.fdpObject.WriteFileMode(filehandle.ctx, (long)filehandle.__buffer0, length);
+                    filehandle.totalDataRead_BigDecimal += length;
+                    filehandle.bandwidthRead += length;
+
+                    // now release the lock at driver by setting event that the app has processed the request
+                    filehandle.fdpObject.SetEventRequestComplete(filehandle.ctx, 1);
+                }
+
+                // finally set the proxy idle event for the driver to unblock and process the reply
+                filehandle.fdpObject.SetEventDriverRequestDataSet(filehandle.ctx, 0);
+                filehandle.fdpObject.SetEventProxyIdle(filehandle.ctx, 1);
+
+                // here, the request sequence completes, then loop reloops.
+            }
+
+            // phase 2 = completion and close
+            // Server Thread completes and terminates here.
         }
 
         private void ProxySocketServerThreadFunction(Object obj)
@@ -872,6 +998,12 @@ namespace FilediskProxyNet
             terminateProxy = true;
             filehandle.myThreadWaitHandle.WaitOne(Timeout.Infinite, false);
             filehandle.DisposeFinalizeAll();
+
+            if (filehandle.useFile == 1)
+            {
+                commonMethods1.EraseFile(filehandle.useFileValue, myContext.useFileSize, 8, true);
+            }
+
             filehandle = null;
             this.Enabled = true;
             MessageBox.Show(this, "Successfully unloaded disk file! Click on OK to continue...", "file unload success.", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, (MessageBoxOptions)0x40000);  // MB_TOPMOST
@@ -954,6 +1086,34 @@ namespace FilediskProxyNet
                 filehandle.fdpObject.setWriteAccess(filehandle.ctx, set);
                 filehandle.fdpObject.NotifyWindowsAtributesChanged(filehandle.ctx);
             }
+        }
+
+        private void radioUsePipe_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cmdUseFile_Click(object sender, EventArgs e)
+        {
+            if (sfdUseFile.ShowDialog() != DialogResult.OK)
+                return;
+
+            txtUseFile.Text = sfdUseFile.FileName;
+        }
+
+        private void radioUseFile_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioUseFile.Checked)
+            {
+                txtUseFile.Enabled = true;
+                cmdUseFile.Enabled = true;
+            }
+            else
+            {
+                txtUseFile.Enabled = false;
+                cmdUseFile.Enabled = false;
+            }
+
         }
     }
 }

@@ -64,6 +64,9 @@ namespace FilediskProxyNet
         public int useShm = 0; // when set, we use shared memory at both sides.
         public int useSocket = 0; // when set, we use sockets at both sides.
         public uint port = 0;
+        public int useFile = 0; // when set, we use a temporary ordinary file in some local path, both driver and this app should share it for all requests i/o
+        public String useFileValue = ""; // the file used for use file option
+        public const int useFileSize = ShmSize;
 
         public myContext()
         {
