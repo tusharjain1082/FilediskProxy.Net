@@ -1001,7 +1001,7 @@ namespace FilediskProxyNet
 
             if (filehandle.useFile == 1)
             {
-                commonMethods1.EraseFile(filehandle.useFileValue, myContext.useFileSize, 8, true);
+                commonMethods1.EraseFile(filehandle.useFileValue, myContext.useFileSize, 32, true);
             }
 
             filehandle = null;

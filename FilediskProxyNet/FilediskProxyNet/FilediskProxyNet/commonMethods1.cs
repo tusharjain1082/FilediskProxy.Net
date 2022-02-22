@@ -76,33 +76,59 @@ namespace FilediskProxyNet
         public static bool EraseFile(String strPath, Int64 length, Int64 iterations, bool deleteFile = false)
         {
             FileStream fs = null;
+            RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+            int sectorSize = 1048576;
+
             try
             {
                 for (Int64 i = 0; i < iterations; i++)
                 {
                     fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
+                    fs.Seek(0, SeekOrigin.Begin);
 
-                    long sectors = length / 1048576;
-                    byte[] sector = new byte[1048576];
+                    long sectors = length / sectorSize;
+                    byte[] sector = new byte[sectorSize];
 
+                    // first erase sector by sector
                     for (long ctr = 0; ctr < sectors; ctr++)
                     {
-                        fs.Seek(ctr * 1048576, SeekOrigin.Begin);
-                        fs.Write(sector, 0, 1048576);
+                        // erase every sector 3 times.
+                        rng.GetBytes(sector);
+                        fs.Write(sector, 0, sectorSize);
                         fs.Flush();
                     }
+
+                    // then overwrite the remaining bytes.
+                    rng.GetBytes(sector);
+                    if (fs.Position != fs.Length)
+                    {
+                        fs.Write(sector, 0, (int)(fs.Length % sectorSize));
+                        fs.Flush();
+                    }
+
+                    // then confirm if completed, or try once more the erasure of remaining bytes length of the file
+                    rng.GetBytes(sector);
+                    if (fs.Position != fs.Length)
+                    {
+                        fs.Write(sector, 0, (int)(fs.Length % sectorSize));
+                        fs.Flush();
+                    }
+
                     fs.Flush();
                     fs.Close();
                     fs.Dispose();
                 }
 
+                // iterations erasure completed, now finally delete the file if required.
                 if (deleteFile)
                     DeleteFile(strPath);            
             }
             catch
             {
+                rng.Dispose();
                 return false;
             }
+            rng.Dispose();
             return true;
         }
 
