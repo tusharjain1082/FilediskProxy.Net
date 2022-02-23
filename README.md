@@ -1,5 +1,5 @@
 # FilediskProxy.Net
-upgraded latest at 22 Feb 2022 10:03 PM
+upgraded latest on 23 Feb 2022 at 07:45 PM
 
 A very-very simple tutorial level and basic example in C++ and C# and .Net of a simple ordinary file backend based full fledged Virtual Disk Drive. A basic virtual disk kernel driver for learning. We have a user interface combined Server-Client Application written in C# .Net which binds with the driver to build a file backed Virtual Disk Drive. The C# .Net Application is the Core Proxy Server, and it uses the Driver to run a Virtual Disk Drive through it. All the code including the kernel driver is included in this repository.
 
