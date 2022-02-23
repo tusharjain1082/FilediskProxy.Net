@@ -66,17 +66,17 @@
   <ItemGroup>
     <Compile Include="BytesConvertor.cs" />
     <Compile Include="commonMethods1.cs" />
-    <Compile Include="FormRoot.cs">
+    <Compile Include="FormFDProxy.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="FormRoot.Designer.cs">
-      <DependentUpon>FormRoot.cs</DependentUpon>
+    <Compile Include="FormFDProxy.Designer.cs">
+      <DependentUpon>FormFDProxy.cs</DependentUpon>
     </Compile>
     <Compile Include="myContext.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="FormRoot.resx">
-      <DependentUpon>FormRoot.cs</DependentUpon>
+    <EmbeddedResource Include="FormFDProxy.resx">
+      <DependentUpon>FormFDProxy.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

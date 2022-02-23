@@ -16,7 +16,7 @@ namespace FilediskProxyNet
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FormRoot());
+            Application.Run(new FormFDProxy());
         }
     }
 }
