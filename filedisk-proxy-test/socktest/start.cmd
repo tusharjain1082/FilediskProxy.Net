@@ -1,2 +1,0 @@
-sc start socktest
-pause
