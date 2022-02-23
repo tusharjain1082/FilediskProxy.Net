@@ -1000,9 +1000,10 @@ namespace FilediskProxyNet
             filehandle.myThreadWaitHandle.WaitOne(Timeout.Infinite, false);
             filehandle.DisposeFinalizeAll();
 
+            // now erase and delete the file so that it destroys all data completely. this is for security reasons.
             if (filehandle.useFile == 1)
             {
-                commonMethods1.EraseFile(filehandle.useFileValue, myContext.useFileSize, 8, true);
+                commonMethods1.EraseFile(filehandle.useFileValue, myContext.useFileSize, 32, true);
             }
 
             filehandle = null;
@@ -1020,15 +1021,15 @@ namespace FilediskProxyNet
                 txtboxTotalDataWrittenMB.Text = String.Format("{0} MB", ((this.filehandle.totalDataWrite_BigDecimal / 1024) / 1024).ToPlainString());
 
                 // bandwidth
-                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthRead, 10));
-                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthWrite, 10));//((this.filehandle.bandwidthWrite / 1024) / 1024));
+                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthRead, 4));
+                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(this.filehandle.bandwidthWrite, 4));//((this.filehandle.bandwidthWrite / 1024) / 1024));
                 this.filehandle.bandwidthRead = this.filehandle.bandwidthWrite = 0;
                 this.txtboxTotalRunningTime.Text = this.myStopWatchRunningTime.Elapsed.ToString("d' Days 'h' Hours 'm' Minutes 's' Seconds'");
             }
             else
             {
-                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(0, 10));
-                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(0, 10));//((this.filehandle.bandwidthWrite / 1024) / 1024));
+                tssLabelBandwidthReadMB.Text = String.Format("read: {0}/s", BytesConvertor.SizeSuffix(0, 4));
+                tssLabelBandwidthWriteMB.Text = String.Format("write: {0}/s", BytesConvertor.SizeSuffix(0, 4));//((this.filehandle.bandwidthWrite / 1024) / 1024));
                 timerUpdateStatus.Enabled = false;
                 myStopWatchRunningTime.Stop();
                 timerUpdateStatus.Stop();

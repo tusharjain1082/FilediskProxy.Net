@@ -77,13 +77,15 @@ namespace FilediskProxyNet
         {
             FileStream fs = null;
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
-            int sectorSize = 1048576;
+            int sectorSize = 1048576; // 1 mb
+
+            // this method erases the file beyond any recovery. data is completely destroyed. this is for security reasons.
 
             try
             {
                 for (Int64 i = 0; i < iterations; i++)
                 {
-                    fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
+                    fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, sectorSize, FileOptions.RandomAccess);
                     fs.Seek(0, SeekOrigin.Begin);
 
                     long sectors = length / sectorSize;
@@ -92,24 +94,34 @@ namespace FilediskProxyNet
                     // first erase sector by sector
                     for (long ctr = 0; ctr < sectors; ctr++)
                     {
-                        // erase every sector 3 times.
+                        // erase 3 times every sector. this overwrites beyond recovery.
+                        long pos = fs.Position;
+                        rng.GetBytes(sector);
+                        fs.Write(sector, 0, sectorSize);
+                        fs.Flush();
+                        fs.Seek(pos, SeekOrigin.Begin);
+                        rng.GetBytes(sector);
+                        fs.Write(sector, 0, sectorSize);
+                        fs.Flush();
+                        fs.Seek(pos, SeekOrigin.Begin);
                         rng.GetBytes(sector);
                         fs.Write(sector, 0, sectorSize);
                         fs.Flush();
                     }
 
-                    // then overwrite the remaining bytes.
-                    rng.GetBytes(sector);
+                    // then erase overwrite the remaining bytes 3 times so that the data is completely destroyed.
                     if (fs.Position != fs.Length)
                     {
+                        long pos = fs.Position;
+                        rng.GetBytes(sector);
                         fs.Write(sector, 0, (int)(fs.Length % sectorSize));
                         fs.Flush();
-                    }
-
-                    // then confirm if completed, or try once more the erasure of remaining bytes length of the file
-                    rng.GetBytes(sector);
-                    if (fs.Position != fs.Length)
-                    {
+                        fs.Seek(pos, SeekOrigin.Begin);
+                        rng.GetBytes(sector);
+                        fs.Write(sector, 0, (int)(fs.Length % sectorSize));
+                        fs.Flush();
+                        fs.Seek(pos, SeekOrigin.Begin);
+                        rng.GetBytes(sector);
                         fs.Write(sector, 0, (int)(fs.Length % sectorSize));
                         fs.Flush();
                     }
@@ -117,60 +129,111 @@ namespace FilediskProxyNet
                     fs.Flush();
                     fs.Close();
                     fs.Dispose();
+                    fs = null;
                 }
 
                 // iterations erasure completed, now finally delete the file if required.
                 if (deleteFile)
-                    DeleteFile(strPath);            
+                    DeleteFile(strPath);
             }
             catch
             {
                 rng.Dispose();
+                if (fs != null)
+                {
+                    fs.Close();
+                    fs.Dispose();
+                    fs = null;
+                }
                 return false;
             }
             rng.Dispose();
             return true;
         }
 
+        public static bool initializeFile(String strPath, Int64 length)
+        {
+            FileStream fs = null;
+            int sectorSize = 1048576; // 1 mb
+
+            try
+            {
+                // initialize a new file
+                fs = new FileStream(strPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, sectorSize, FileOptions.RandomAccess);
+                fs.Seek(0, SeekOrigin.Begin);
+
+                long sectors = length / sectorSize;
+                byte[] sector = new byte[sectorSize];
+
+                // write all sectors with 0s
+                for (long ctr = 0; ctr < sectors; ctr++)
+                {
+                    fs.Write(sector, 0, sectorSize);
+                    fs.Flush();
+                }
+
+                // create the last remaining length in the file
+                if (fs.Position != length)
+                {
+                    fs.Write(sector, 0, (int)(length % sectorSize));
+                    fs.Flush();
+                }
+
+                fs.Flush();
+                fs.Close();
+                fs.Dispose();
+                fs = null;
+            }
+            catch
+            {
+                if (fs != null)
+                {
+                    fs.Close();
+                    fs.Dispose();
+                    fs = null;
+                }
+                return false;
+            }
+            return true;
+        }
 
         public static FileStream CreateInitializeFile(String strPath, Int64 length, bool overwrite = true, bool returnHandle = true)
         {
             FileStream fs = null;
-            try
+            int sectorSize = 1048576; // 1 mb
+
+            if (File.Exists(strPath))
             {
+                // file already exists.
+
                 if (overwrite)
                 {
-                    fs = new FileStream(strPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
-
-                    long sectors = length / 1048576;
-                    byte[] sector = new byte[1048576];
-
-                    for (long ctr = 0; ctr < sectors; ctr++)
-                    {
-                        fs.Seek(ctr * 1048576, SeekOrigin.Begin);
-                        fs.Write(sector, 0, 1048576);
-                        fs.Flush();
-                    }
+                    // overwrite and create and initialize a new file
+                    if (!initializeFile(strPath, length))
+                        return null; // error
                 }
                 else
                 {
-                    fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 1048576, FileOptions.RandomAccess);
+                    // open the existing file later.
                 }
             }
-            catch
+            else
             {
-                return null;
+                // file does not exists. so create and initialize a new file
+                if (!initializeFile(strPath, length))
+                    return null; // error
             }
 
             if (returnHandle)
             {
+                // file created or existed, so simply load the file and return it's handle
+                fs = new FileStream(strPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, sectorSize, FileOptions.RandomAccess);
+                fs.Seek(0, SeekOrigin.Begin);
                 return fs;
             }
             else
             {
-                fs.Flush();
-                fs.Close();
-                fs.Dispose();
+                // user does not wants us to load the file and return handle, so return with null without opening the file.
                 return null;
             }
         }
