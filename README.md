@@ -2,7 +2,7 @@
 A very-very simple tutorial level and basic example in C++ and C# and .Net of a simple ordinary file backend based full fledged Virtual Disk Drive. A basic virtual disk kernel driver for learning. We have a user interface combined Server-Client Application written in C# .Net which binds with the driver to build a file backed Virtual Disk Drive. The C# .Net Application is the Core Proxy Server, and it uses the Driver to run a Virtual Disk Drive through it. All the code including the kernel driver is included in this repository.
 
 CAUTION
-please be warned that this entire software set is in teasing stage. it is not a final version. so please do not use it for storing any valuable data. always create 2+ backups of your valuable data in other safe places before using it with this software. there is no guarantee or warranty of this software when it crashes with data. please use it at your own risk. it is advised to create multiple safe backups of data in multiple places, not just a single place.
+please be warned that this entire software set is in testing alpha stage, so it's buggy imperfect stage. it is not a final version. so please do not use it for storing any valuable data. always create 2+ backups of your valuable data in other safe places before using it with this software. there is no guarantee or warranty of this software when it crashes with data. please use it at your own risk. it is advised to create multiple safe backups of data in multiple places, not just a single place.
 
 Q. now what's the purpose?
 
